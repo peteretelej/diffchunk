@@ -27,7 +27,9 @@ MCP Client Configuration:
   }
         """,
     )
-    parser.add_argument("--version", action="version", version=f"diffchunk {version('diffchunk')}")
+    parser.add_argument(
+        "--version", action="version", version=f"diffchunk {version('diffchunk')}"
+    )
 
     parser.parse_args()
 
