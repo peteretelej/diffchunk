@@ -1,154 +1,146 @@
-# diffchunk Design Document
+# diffchunk MCP Server Design
 
 ## Overview
 
-**diffchunk** is a Python CLI tool that enables Large Language Models (LLMs) to consume and analyze large diff files by breaking them into manageable, contextual chunks. The tool addresses the common problem where diff files exceed LLM context windows, making comprehensive code review impossible.
+diffchunk is an MCP server that breaks large diff files into navigable chunks. LLMs can locate specific changes by file patterns and analyze diffs that exceed context window limits.
 
-## Problem Statement
+## Problem
 
-- Large diff files (50k+ LOC) cannot fit in LLM context windows
-- Manual chunking loses important context and file relationships
-- Trivial changes (whitespace, newlines) add noise without value
-- Need systematic way to review all changes sequentially
+Large diffs present multiple issues:
 
-## Solution Architecture
+- **Context limits**: 50k+ line diffs exceed LLM context windows (Claude: 200k tokens ≈ 40k lines)
+- **Cost**: Large contexts consume expensive tokens unnecessarily 
+- **Relevance**: Most diff content is irrelevant to specific analysis tasks
+- **Lost context**: Blind chunking breaks file relationships and diff metadata
+- **Manual overhead**: Hand-splitting diffs is time-consuming and error-prone
 
-### Core Components
+## Solution
 
-#### 1. DiffParser (`parser.py`)
-- Parse unified diff format
-- Extract file-level metadata
-- Identify change types (additions, deletions, modifications)
-- Calculate statistics (total lines, affected files)
+File-based navigation system with four MCP tools:
 
-#### 2. DiffChunker (`chunker.py`)
-- Split large diffs into logical parts
-- Preserve file boundaries and context
-- Maintain header information for each chunk
-- Support configurable chunk sizes
+1. **load_diff** - Parse diff file, return chunk overview
+2. **list_chunks** - Get chunk summaries with file mappings  
+3. **get_chunk** - Retrieve specific chunk content
+4. **find_chunks_for_files** - Locate chunks by file patterns
 
-#### 3. ChangeFilter (`filters.py`)
-- Skip trivial changes (whitespace-only, newline-only)
-- Filter based on change significance
-- Configurable filtering rules
+## API
 
-#### 4. CLI Interface (`cli.py`)
-- Command-line argument parsing
-- Progress tracking and user feedback
-- Output formatting for LLM consumption
+### Tools
 
-### Data Flow
-
+#### load_diff
+```python
+def load_diff(
+    file_path: str,
+    max_chunk_lines: int = 4000,
+    skip_trivial: bool = True,
+    skip_generated: bool = True,
+    include_patterns: str = None,
+    exclude_patterns: str = None
+) -> dict
 ```
-Large Diff File → DiffParser → ChangeFilter → DiffChunker → Formatted Output
+Returns: Overview with total chunks, file count, basic statistics
+
+#### list_chunks
+```python
+def list_chunks() -> list
 ```
+Returns: Array of chunk info with file names, line counts, summaries
 
-## Command Interface
-
-### Basic Usage
-```bash
-# Get diff metadata
-diffchunk.py large.diff
-# Output: Total lines: 50000, Files changed: 25, Chunks available: 10
-
-# Get specific chunk
-diffchunk.py large.diff --part 1
-# Output: Formatted diff chunk with context
+#### get_chunk
+```python
+def get_chunk(chunk_number: int, include_context: bool = True) -> str
 ```
+Returns: Formatted diff chunk content
 
-### Advanced Options
-```bash
-# Skip trivial changes
-diffchunk.py large.diff --part 1 --skip-trivial
-
-# Custom chunk size
-diffchunk.py large.diff --part 1 --max-lines 2000
-
-# Show only specific file types
-diffchunk.py large.diff --part 1 --include "*.py,*.js"
+#### find_chunks_for_files
+```python
+def find_chunks_for_files(pattern: str) -> list
 ```
+Returns: Array of chunk numbers containing files matching pattern
 
-## Technical Specifications
+### Resources
 
-### Input Format
-- Standard unified diff format (`git diff`, `diff -u`)
-- Support for multiple file changes in single diff
-- Handle binary file indicators
+- `diffchunk://current` - Overview of loaded diff
 
-### Output Format
-- Preserve diff headers and context
-- Add chunk metadata (part X of Y)
-- Include file summaries for context
-- Format optimized for LLM consumption
+## Implementation
+
+### Architecture
+```
+Diff File → Parse → Filter → Chunk → Index → Navigation API
+```
 
 ### Chunking Strategy
-1. **File-boundary chunking**: Split at file boundaries when possible
-2. **Line-limit chunking**: Split within files if they exceed limits
-3. **Context preservation**: Maintain sufficient context lines
-4. **Header inclusion**: Include relevant file headers in each chunk
+- Prefer file boundaries to maintain context
+- Respect max_chunk_lines limit (default 4000)
+- Track file-to-chunk mapping for navigation
+- Preserve diff headers and context lines
 
-### Filtering Rules
-- Skip changes with only whitespace modifications
-- Skip single newline additions/removals
-- Skip changes in generated files (configurable patterns)
-- Preserve significant formatting changes
+### Storage
+- Single diff per session (stateless)
+- In-memory chunk index
+- File pattern matching via glob patterns
 
-## Implementation Details
+### Core Classes
+```python
+class DiffSession:
+    file_path: str
+    chunks: List[DiffChunk]
+    file_to_chunks: Dict[str, List[int]]
+    stats: DiffStats
 
-### Dependencies
-- Python 3.8+
-- No external dependencies for core functionality
-- Optional: `rich` for enhanced CLI output
-
-### Error Handling
-- Graceful handling of malformed diff files
-- Clear error messages for invalid inputs
-- Fallback strategies for edge cases
-
-### Performance Considerations
-- Stream processing for large files
-- Memory-efficient chunking
-- Lazy loading of diff content
-
-## File Structure
-
-```
-diffchunk/
-├── pyproject.toml          # uv project configuration
-├── README.md              # User documentation
-├── docs/
-│   └── design.md          # This document
-├── src/
-│   └── diffchunk/
-│       ├── __init__.py    # Package initialization
-│       ├── cli.py         # Command-line interface
-│       ├── parser.py      # Diff parsing logic
-│       ├── chunker.py     # Chunking algorithms
-│       └── filters.py     # Change filtering
-└── tests/
-    ├── __init__.py
-    ├── test_parser.py     # Parser tests
-    ├── test_chunker.py    # Chunker tests
-    └── fixtures/          # Test diff files
+class ChunkInfo:
+    chunk_number: int
+    files: List[str]
+    line_count: int
+    summary: str
 ```
 
-## Future Enhancements
+## Usage Examples
 
-### Phase 2 Features
-- Interactive mode for chunk navigation
-- Integration with popular diff tools
-- Custom output formats (JSON, XML)
-- Diff comparison and merging capabilities
+### Basic Navigation
+```python
+load_diff("/tmp/feature.diff")
+list_chunks()  # See all chunks with file info
+get_chunk(1)   # Analyze first chunk
+```
 
-### Phase 3 Features
-- Web interface for diff visualization
-- API for programmatic access
-- Plugin system for custom filters
-- Integration with code review tools
+### Pattern-Based Navigation  
+```python
+find_chunks_for_files("*.py")        # Python files → [1, 3, 5]
+find_chunks_for_files("*test*")      # Test files → [2, 6]
+find_chunks_for_files("src/*")       # Source directory → [1, 3, 4]
+```
 
-## Success Metrics
+## Configuration
 
-- Ability to process diffs up to 100k+ LOC
-- Chunk sizes suitable for common LLM context windows (4k-32k tokens)
-- Filtering reduces noise by 30-50% in typical diffs
-- Processing time under 5 seconds for 50k LOC diffs
+### Filtering Options
+- `skip_trivial`: Skip whitespace-only changes (default: true)
+- `skip_generated`: Skip lock files, build artifacts (default: true)  
+- `include_patterns`: Comma-separated glob patterns
+- `exclude_patterns`: Comma-separated glob patterns
+
+### Defaults
+- Chunk size: 4000 lines (LLM context optimized)
+- File boundary preference over line limits
+- Preserve diff context and headers
+
+## Performance
+
+- Target: <1 second navigation for 100k+ line diffs
+- Memory efficient: stream processing, lazy chunk loading
+- File-based input eliminates parameter size limits
+
+## Error Handling
+
+- Validate file existence and readability
+- Verify diff format before processing
+- Graceful degradation for malformed sections
+- Clear error messages for invalid patterns
+
+## Benefits
+
+- **Direct Navigation**: Jump to relevant changes by file pattern
+- **Context Preservation**: Maintain file relationships and diff metadata
+- **Scale**: Handle enterprise-size diffs efficiently
+- **Integration**: Works with existing git/diff workflows
+- **Language Agnostic**: No assumptions about code structure or language

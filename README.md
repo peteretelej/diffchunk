@@ -1,172 +1,166 @@
 # diffchunk
 
-A Python CLI tool that breaks large diff files into manageable chunks for LLM analysis and code review.
+MCP server for navigating large diff files. Jump directly to relevant changes instead of processing entire diffs sequentially.
 
 ## Problem
 
-Large diff files (50k+ lines) exceed LLM context windows, making comprehensive code review impossible. Manual chunking loses context and file relationships.
+Large diffs create analysis bottlenecks:
+- Context limits: 50k+ line diffs exceed LLM context windows
+- Token costs: Processing irrelevant changes wastes expensive tokens
+- Poor targeting: Most diff content is unrelated to specific analysis goals
+- Lost context: Manual splitting breaks file relationships and metadata
 
 ## Solution
 
-`diffchunk` intelligently splits large diffs while preserving context, filtering trivial changes, and maintaining file boundaries.
+MCP server with 4 navigation tools:
+- `load_diff` - Parse diff file and get overview
+- `list_chunks` - Show chunks with file mappings
+- `get_chunk` - Retrieve specific chunk content
+- `find_chunks_for_files` - Locate chunks by file patterns
 
 ## Installation
 
-### Prerequisites
-- Python 3.8+
-- [uv](https://docs.astral.sh/uv/) package manager
-
-### Install uv (if not already installed)
+### Option 1: PyPI (Recommended)
 ```bash
-# Windows
-powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+pip install diffchunk
 ```
 
-### Install diffchunk
+### Option 2: uvx (No Installation)
 ```bash
-# Clone repository
-git clone https://github.com/peteretelej/diffchunk.git
-cd diffchunk
-
-# Install with uv
-uv sync
+uvx --from diffchunk diffchunk-mcp
 ```
 
-## Usage
-
-### Basic Commands
-
-#### Get diff metadata
+### Option 3: GitHub Direct
 ```bash
-uv run diffchunk large.diff
-```
-Output:
-```
-Total lines: 50,000
-Files changed: 25
-Total chunks: 10
-Trivial changes: 150 (filtered)
+uvx --from git+https://github.com/peteretelej/diffchunk diffchunk-mcp
 ```
 
-#### Get specific chunk
+## MCP Configuration
+
+Add to your MCP client:
+
+**PyPI install:**
+```json
+{
+  "mcpServers": {
+    "diffchunk": {
+      "command": "diffchunk-mcp"
+    }
+  }
+}
+```
+
+**uvx install:**
+```json
+{
+  "mcpServers": {
+    "diffchunk": {
+      "command": "uvx",
+      "args": ["--from", "diffchunk", "diffchunk-mcp"]
+    }
+  }
+}
+```
+
+**GitHub direct:**
+```json
+{
+  "mcpServers": {
+    "diffchunk": {
+      "command": "uvx", 
+      "args": ["--from", "git+https://github.com/peteretelej/diffchunk", "diffchunk-mcp"]
+    }
+  }
+}
+```
+
+## Quick Start
+
+1. Generate diff file:
 ```bash
-uv run diffchunk large.diff --part 1
-```
-Output:
-```
-=== Chunk 1 of 10 ===
-Files: src/main.py, src/utils.py (2 files)
-Lines: 4,500
-
-diff --git a/src/main.py b/src/main.py
-index 1234567..abcdefg 100644
---- a/src/main.py
-+++ b/src/main.py
-[diff content...]
+git diff main..feature-branch > /tmp/changes.diff
 ```
 
-### Advanced Options
+2. Load in LLM:
+```
+load_diff("/tmp/changes.diff")
+→ {"chunks": 5, "files": 23, "total_lines": 8432}
+```
 
-#### Skip trivial changes
+3. Navigate and analyze:
+```
+list_chunks()
+→ [{"chunk": 1, "files": ["api/auth.py", "models/user.py"], "lines": 1205}, ...]
+
+find_chunks_for_files("*test*")
+→ [2, 4]
+
+get_chunk(1)
+→ "=== Chunk 1 of 5 ===\ndiff --git a/api/auth.py..."
+```
+
+## Usage Examples
+
+### Large Feature Review
 ```bash
-uv run diffchunk large.diff --part 1 --skip-trivial
+git diff main..feature-auth > auth-changes.diff
 ```
 
-#### Custom chunk size
-```bash
-uv run diffchunk large.diff --part 1 --max-lines 2000
+```
+load_diff("auth-changes.diff")
+list_chunks()  # Overview of all changes
+find_chunks_for_files("*controller*")  # API endpoints → [1, 3]
+find_chunks_for_files("*test*")        # Tests → [2, 5]
+get_chunk(1)   # Analyze API changes
 ```
 
-#### Filter by file types
-```bash
-uv run diffchunk large.diff --part 1 --include "*.py,*.js"
+### Targeted Analysis
+```
+# Focus on specific file types
+find_chunks_for_files("*.py")       # Python code → [1, 3, 4]
+find_chunks_for_files("*.json")     # Config files → [2]
+find_chunks_for_files("src/core/*") # Core module → [1, 4]
+
+# Skip to relevant sections
+get_chunk(3)  # Direct access to specific changes
 ```
 
-#### Show all available options
-```bash
-uv run diffchunk --help
+## Configuration Options
+
+### load_diff Parameters
+- `max_chunk_lines`: Lines per chunk (default: 4000)
+- `skip_trivial`: Skip whitespace-only changes (default: true)
+- `skip_generated`: Skip build artifacts, lock files (default: true)
+- `include_patterns`: Comma-separated file patterns to include
+- `exclude_patterns`: Comma-separated file patterns to exclude
+
+### Example
 ```
-
-## Examples
-
-### Typical Workflow
-
-1. **Analyze the diff**
-
-```bash
-uv run diffchunk my-feature.diff
-# Output: Total lines: 15,000, Files changed: 8, Total chunks: 3
+load_diff(
+    "/tmp/large.diff",
+    max_chunk_lines=2000,
+    include_patterns="*.py,*.js",
+    exclude_patterns="*test*,*spec*"
+)
 ```
-
-2. **Review each chunk**
-
-```bash
-uv run diffchunk my-feature.diff --part 1
-# Review first chunk with LLM
-
-uv run diffchunk my-feature.diff --part 2
-# Review second chunk with LLM
-
-uv run diffchunk my-feature.diff --part 3
-# Review final chunk with LLM
-```
-
-### Generate diff from git
-```bash
-# Create a diff file
-git diff main..feature-branch > feature.diff
-
-# Analyze with diffchunk
-uv run diffchunk feature.diff
-```
-
-## Features
-
-- **Smart chunking**: Preserves file boundaries and context
-- **Trivial filtering**: Skips whitespace-only and newline-only changes
-- **Metadata extraction**: Shows total lines, files, and chunk count
-- **Context preservation**: Maintains diff headers and file context
-- **Memory efficient**: Streams large files without loading entirely into memory
-- **Windows compatible**: Built and tested on Windows with uv
-
-## Output Format
-
-Each chunk includes:
-- Chunk metadata (part X of Y)
-- File list and line counts
-- Complete diff headers
-- Contextual diff content
-- Summary statistics
 
 ## Supported Formats
 
-- Git diff output (`git diff`)
+- Git diff output (`git diff`, `git show`)
 - Unified diff format (`diff -u`)
-- Multiple file changes in single diff
+- Multiple files in single diff
 - Binary file change indicators
 
-## Development
+## Performance
 
-### Setup development environment
-```bash
-# Clone and setup
-git clone https://github.com/peteretelej/diffchunk.git
-cd diffchunk
-uv sync --dev
+- Handles 100k+ line diffs in under 1 second
+- Memory efficient streaming for large files
+- File-based input avoids parameter size limits
 
-# Run tests
-uv run pytest
+## Benefits
 
-# Run linting
-uv run ruff check
-```
-
-### Project Structure
-```
-diffchunk/
-├── pyproject.toml          # uv configuration
-├── src/diffchunk/          # Source code
-├── tests/                  # Test files
-└── docs/                   # Documentation
-```
-
+- **Cost reduction**: Process only relevant changes, reduce token usage
+- **Fast navigation**: Jump directly to files or areas of interest
+- **Context preservation**: Maintain file relationships and diff metadata
+- **Language agnostic**: Works with any codebase or diff format
+- **Enterprise ready**: Handles large feature branches and refactoring diffs
