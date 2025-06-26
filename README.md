@@ -4,6 +4,7 @@
 [![codecov](https://codecov.io/gh/peteretelej/diffchunk/branch/main/graph/badge.svg)](https://codecov.io/gh/peteretelej/diffchunk)
 [![PyPI version](https://badge.fury.io/py/diffchunk.svg)](https://badge.fury.io/py/diffchunk)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
@@ -20,7 +21,7 @@ Large diffs create analysis bottlenecks:
 
 ## Solution
 
-MCP server with 4 navigation tools:
+MCP server with 4 diff navigation tools:
 
 - `load_diff` - Parse diff file and get overview
 - `list_chunks` - Show chunks with file mappings
@@ -384,3 +385,7 @@ uv run python -m src.main
 - **File not found**: Use absolute paths for diff files or ensure correct working directory
 - **Permission errors**: Check file permissions for diff files
 - **Memory issues**: Use smaller `max_chunk_lines` for very large diffs
+
+# License
+
+[MIT](./LICENSE)

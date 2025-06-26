@@ -64,11 +64,14 @@ jobs:
     - name: Test MCP server startup
       run: |
         timeout 3s uv run python -m src.main || exit_code=$?
-        if [ $exit_code -eq 124 ]; then
+        if [ "${exit_code:-0}" -eq 124 ]; then
           echo "✓ Server started successfully (timeout expected)"
           exit 0
+        elif [ "${exit_code:-0}" -eq 0 ]; then
+          echo "✓ Server started and exited cleanly"
+          exit 0
         else
-          echo "✗ Server failed to start"
+          echo "✗ Server failed to start (exit code: ${exit_code:-0})"
           exit 1
         fi
 

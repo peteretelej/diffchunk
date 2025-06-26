@@ -7,6 +7,7 @@ requires-python = ">=3.10"
 authors = [
     {name = "Peter Etelej", email = "peter@etelej.com"}
 ]
+license = {text = "MIT"}
 dependencies = [
     "click>=8.2.1",
     "mcp>=1.10.0",
