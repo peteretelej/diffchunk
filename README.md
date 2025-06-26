@@ -12,6 +12,7 @@ MCP server for navigating large diff files. Jump directly to relevant changes in
 ## Problem
 
 Large diffs create analysis bottlenecks:
+
 - Context limits: 50k+ line diffs exceed LLM context windows
 - Token costs: Processing irrelevant changes wastes expensive tokens
 - Poor targeting: Most diff content is unrelated to specific analysis goals
@@ -20,24 +21,30 @@ Large diffs create analysis bottlenecks:
 ## Solution
 
 MCP server with 4 navigation tools:
+
 - `load_diff` - Parse diff file and get overview
 - `list_chunks` - Show chunks with file mappings
 - `get_chunk` - Retrieve specific chunk content
 - `find_chunks_for_files` - Locate chunks by file patterns
 
+Solution Design: [docs/design.md](docs/design.md)
+
 ## Installation
 
 ### Option 1: PyPI (Recommended)
+
 ```bash
 pip install diffchunk
 ```
 
 ### Option 2: uvx (No Installation)
+
 ```bash
 uvx --from diffchunk diffchunk-mcp
 ```
 
 ### Option 3: GitHub Direct
+
 ```bash
 uvx --from git+https://github.com/peteretelej/diffchunk diffchunk-mcp
 ```
@@ -47,6 +54,7 @@ uvx --from git+https://github.com/peteretelej/diffchunk diffchunk-mcp
 Add to your MCP client:
 
 **PyPI install:**
+
 ```json
 {
   "mcpServers": {
@@ -58,6 +66,7 @@ Add to your MCP client:
 ```
 
 **uvx install:**
+
 ```json
 {
   "mcpServers": {
@@ -70,12 +79,17 @@ Add to your MCP client:
 ```
 
 **GitHub direct:**
+
 ```json
 {
   "mcpServers": {
     "diffchunk": {
-      "command": "uvx", 
-      "args": ["--from", "git+https://github.com/peteretelej/diffchunk", "diffchunk-mcp"]
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/peteretelej/diffchunk",
+        "diffchunk-mcp"
+      ]
     }
   }
 }
@@ -84,17 +98,20 @@ Add to your MCP client:
 ## Quick Start
 
 1. Generate diff file:
+
 ```bash
 git diff main..feature-branch > /tmp/changes.diff
 ```
 
 2. Load in LLM:
+
 ```
 load_diff("/tmp/changes.diff")
 → {"chunks": 5, "files": 23, "total_lines": 8432}
 ```
 
 3. Navigate and analyze:
+
 ```
 list_chunks()
 → [{"chunk": 1, "files": ["api/auth.py", "models/user.py"], "lines": 1205}, ...]
@@ -109,6 +126,7 @@ get_chunk(1)
 ## Usage Examples
 
 ### Large Feature Review
+
 ```bash
 git diff main..feature-auth > auth-changes.diff
 ```
@@ -122,6 +140,7 @@ get_chunk(1)   # Analyze API changes
 ```
 
 ### Targeted Analysis
+
 ```
 # Focus on specific file types
 find_chunks_for_files("*.py")       # Python code → [1, 3, 4]
@@ -135,6 +154,7 @@ get_chunk(3)  # Direct access to specific changes
 ## Configuration Options
 
 ### load_diff Parameters
+
 - `max_chunk_lines`: Lines per chunk (default: 4000)
 - `skip_trivial`: Skip whitespace-only changes (default: true)
 - `skip_generated`: Skip build artifacts, lock files (default: true)
@@ -142,6 +162,7 @@ get_chunk(3)  # Direct access to specific changes
 - `exclude_patterns`: Comma-separated file patterns to exclude
 
 ### Example
+
 ```
 load_diff(
     "/tmp/large.diff",
@@ -201,6 +222,7 @@ uv run python -m src.main
 ### Detailed Setup
 
 **Windows:**
+
 ```cmd
 # Install uv
 powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
@@ -212,6 +234,7 @@ uv sync
 ```
 
 **Linux/macOS:**
+
 ```bash
 # Install uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -231,16 +254,18 @@ uv run python -m src.main
 ### Testing
 
 **Run all tests:**
+
 ```bash
 uv run pytest
 ```
 
 **Run specific test suites:**
+
 ```bash
 # Integration tests with real diff files
 uv run pytest tests/test_integration.py -v
 
-# MCP component tests  
+# MCP component tests
 uv run pytest tests/test_mcp_components.py -v
 ```
 
@@ -258,12 +283,14 @@ git diff HEAD~10..HEAD > test.diff
 ### Code Quality
 
 **Formatting and linting:**
+
 ```bash
 uv run ruff check
 uv run ruff format
 ```
 
 **Type checking:**
+
 ```bash
 uv run mypy src/
 ```
@@ -291,12 +318,14 @@ diffchunk/
 ### MCP Integration Testing
 
 1. **Start the server locally:**
+
    ```bash
    uv run python -m src.main
    ```
 
 2. **Test with MCP client** (e.g., Claude Desktop):
    Add to your MCP client configuration (usually `~/.config/claude-desktop/claude_desktop_config.json`):
+
    ```json
    {
      "mcpServers": {
@@ -310,10 +339,11 @@ diffchunk/
    ```
 
 3. **Verify server works:**
+
    ```bash
    # Create test diff
    git diff HEAD~5..HEAD > test.diff
-   
+
    # Use MCP client or automated tests
    uv run pytest tests/test_mcp_components.py::TestMCPComponents::test_diffchunk_tools_complete_workflow -v
    ```
@@ -321,6 +351,7 @@ diffchunk/
 ### Development Workflow
 
 **Making changes:**
+
 ```bash
 # Make code changes
 # ...
