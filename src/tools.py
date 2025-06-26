@@ -25,10 +25,14 @@ class DiffChunkTools:
     ) -> Dict[str, Any]:
         """Load and parse a diff file into chunks."""
         # Validate inputs
-        if not file_path or not isinstance(file_path, str):
+        if not file_path or not isinstance(file_path, str) or not file_path.strip():
             raise ValueError("file_path must be a non-empty string")
 
-        if not working_directory or not isinstance(working_directory, str):
+        if (
+            not working_directory
+            or not isinstance(working_directory, str)
+            or not working_directory.strip()
+        ):
             raise ValueError("working_directory must be a non-empty string")
 
         if not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
@@ -43,11 +47,11 @@ class DiffChunkTools:
 
         # Validate working directory exists
         if not os.path.exists(working_dir):
-            raise ValueError(f"Working directory not found: {working_directory}")
+            raise ValueError(f"Working directory {working_directory} does not exist")
 
         if not os.path.isdir(working_dir):
             raise ValueError(
-                f"Working directory path is not a directory: {working_directory}"
+                f"Working directory {working_directory} is not a directory"
             )
 
         # Validate file exists and is readable
