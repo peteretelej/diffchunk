@@ -16,6 +16,7 @@ class DiffChunkTools:
     def load_diff(
         self,
         file_path: str,
+        working_directory: str,
         max_chunk_lines: int = 4000,
         skip_trivial: bool = True,
         skip_generated: bool = True,
@@ -27,18 +28,39 @@ class DiffChunkTools:
         if not file_path or not isinstance(file_path, str):
             raise ValueError("file_path must be a non-empty string")
 
+        if not working_directory or not isinstance(working_directory, str):
+            raise ValueError("working_directory must be a non-empty string")
+
         if not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
             raise ValueError("max_chunk_lines must be a positive integer")
 
+        # Normalize and resolve file path
+        working_dir = os.path.normpath(os.path.expanduser(working_directory))
+        if not os.path.isabs(file_path):
+            resolved_file_path = os.path.normpath(os.path.join(working_dir, file_path))
+        else:
+            resolved_file_path = os.path.normpath(file_path)
+
+        # Validate working directory exists
+        if not os.path.exists(working_dir):
+            raise ValueError(f"Working directory not found: {working_directory}")
+
+        if not os.path.isdir(working_dir):
+            raise ValueError(
+                f"Working directory path is not a directory: {working_directory}"
+            )
+
         # Validate file exists and is readable
-        if not os.path.exists(file_path):
-            raise ValueError(f"Diff file not found: {file_path}")
+        if not os.path.exists(resolved_file_path):
+            raise ValueError(
+                f"Diff file not found: {file_path} (resolved to: {resolved_file_path})"
+            )
 
-        if not os.path.isfile(file_path):
-            raise ValueError(f"Path is not a file: {file_path}")
+        if not os.path.isfile(resolved_file_path):
+            raise ValueError(f"Path is not a file: {resolved_file_path}")
 
-        if not os.access(file_path, os.R_OK):
-            raise ValueError(f"Cannot read file: {file_path}")
+        if not os.access(resolved_file_path, os.R_OK):
+            raise ValueError(f"Cannot read file: {resolved_file_path}")
 
         # Parse patterns
         include_list = None
@@ -51,7 +73,7 @@ class DiffChunkTools:
             exclude_list = [p.strip() for p in exclude_patterns.split(",") if p.strip()]
 
         # Create new session
-        self.current_session = DiffSession(file_path)
+        self.current_session = DiffSession(resolved_file_path)
 
         # Configure chunker
         self.chunker.max_chunk_lines = max_chunk_lines

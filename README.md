@@ -32,41 +32,25 @@ Solution Design: [docs/design.md](docs/design.md)
 
 ## Installation
 
-### Option 1: PyPI (Recommended)
+### Option 1: uvx (Recommended)
 
-```bash
-pip install diffchunk
-```
-
-### Option 2: uvx (No Installation)
+No installation required - runs directly:
 
 ```bash
 uvx --from diffchunk diffchunk-mcp
 ```
 
-### Option 3: GitHub Direct
+### Option 2: PyPI
 
 ```bash
-uvx --from git+https://github.com/peteretelej/diffchunk diffchunk-mcp
+pip install diffchunk
 ```
 
 ## MCP Configuration
 
 Add to your MCP client:
 
-**PyPI install:**
-
-```json
-{
-  "mcpServers": {
-    "diffchunk": {
-      "command": "diffchunk-mcp"
-    }
-  }
-}
-```
-
-**uvx install:**
+**uvx (recommended):**
 
 ```json
 {
@@ -79,18 +63,13 @@ Add to your MCP client:
 }
 ```
 
-**GitHub direct:**
+**PyPI install:**
 
 ```json
 {
   "mcpServers": {
     "diffchunk": {
-      "command": "uvx",
-      "args": [
-        "--from",
-        "git+https://github.com/peteretelej/diffchunk",
-        "diffchunk-mcp"
-      ]
+      "command": "diffchunk-mcp"
     }
   }
 }
@@ -107,7 +86,7 @@ git diff main..feature-branch > /tmp/changes.diff
 2. Load in LLM:
 
 ```
-load_diff("/tmp/changes.diff")
+load_diff("/tmp/changes.diff", "/path/to/project")
 → {"chunks": 5, "files": 23, "total_lines": 8432}
 ```
 
@@ -133,7 +112,7 @@ git diff main..feature-auth > auth-changes.diff
 ```
 
 ```
-load_diff("auth-changes.diff")
+load_diff("auth-changes.diff", "/path/to/project")
 list_chunks()  # Overview of all changes
 find_chunks_for_files("*controller*")  # API endpoints → [1, 3]
 find_chunks_for_files("*test*")        # Tests → [2, 5]
@@ -156,21 +135,70 @@ get_chunk(3)  # Direct access to specific changes
 
 ### load_diff Parameters
 
+- `file_path`: Path to diff file (absolute or relative to working_directory) 
+- `working_directory`: **Required**. Directory to resolve relative file paths from
 - `max_chunk_lines`: Lines per chunk (default: 4000)
 - `skip_trivial`: Skip whitespace-only changes (default: true)
 - `skip_generated`: Skip build artifacts, lock files (default: true)
 - `include_patterns`: Comma-separated file patterns to include
 - `exclude_patterns`: Comma-separated file patterns to exclude
 
-### Example
+### Path Resolution
 
+The MCP server requires a `working_directory` parameter to properly resolve file paths:
+
+- **Absolute paths**: Used directly (e.g., `/home/user/project/changes.diff`)
+- **Relative paths**: Resolved against `working_directory` (e.g., `changes.diff` + `/home/user/project/`)
+- **Cross-platform**: Handles Windows (`C:\path`) and Unix (`/path`) formats automatically
+- **Home directory**: Supports `~` expansion for both parameters
+
+### Examples
+
+**Absolute path:**
+```
+load_diff(
+    "/home/user/project/changes.diff",
+    "/home/user/project",
+    max_chunk_lines=2000
+)
+```
+
+**Relative path:**
+```
+load_diff(
+    "changes.diff",
+    "/home/user/project", 
+    max_chunk_lines=2000
+)
+```
+
+**Windows paths:**
+```
+load_diff(
+    "changes.diff",
+    "C:\\Users\\user\\project",
+    max_chunk_lines=2000
+)
+```
+
+**With filtering:**
 ```
 load_diff(
     "/tmp/large.diff",
+    "/path/to/project",
     max_chunk_lines=2000,
     include_patterns="*.py,*.js",
     exclude_patterns="*test*,*spec*"
 )
+```
+
+**MCP Client Usage:**
+When using with Cline or other MCP clients, ensure the client provides both parameters:
+```json
+{
+  "file_path": "comparison_diff.patch",
+  "working_directory": "/path/to/your/project"
+}
 ```
 
 ## Supported Formats
@@ -213,6 +241,31 @@ uv run pytest
 
 # Start MCP server
 uv run python -m src.main
+```
+
+### GitHub Direct Install
+
+For development or latest features:
+
+```bash
+uvx --from git+https://github.com/peteretelej/diffchunk diffchunk-mcp
+```
+
+**MCP Configuration:**
+
+```json
+{
+  "mcpServers": {
+    "diffchunk": {
+      "command": "uvx",
+      "args": [
+        "--from",
+        "git+https://github.com/peteretelej/diffchunk",
+        "diffchunk-mcp"
+      ]
+    }
+  }
+}
 ```
 
 ### Prerequisites
@@ -382,9 +435,20 @@ uv run python -m src.main
 **Common issues:**
 
 - **Import errors**: Ensure you're using `uv run` for all commands
-- **File not found**: Use absolute paths for diff files or ensure correct working directory
-- **Permission errors**: Check file permissions for diff files
+- **File not found**: Verify both `file_path` and `working_directory` are correct
+- **Path resolution errors**: Use absolute paths or double-check relative path + working directory
+- **Permission errors**: Check file permissions for diff files and working directory access
 - **Memory issues**: Use smaller `max_chunk_lines` for very large diffs
+
+**Path troubleshooting:**
+```bash
+# Check if file exists from working directory
+cd /your/working/directory
+ls -la your-diff-file.diff
+
+# Use absolute paths to avoid confusion
+load_diff("/absolute/path/to/diff.patch", "/absolute/path/to/project")
+```
 
 # License
 

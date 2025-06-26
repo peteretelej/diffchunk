@@ -52,6 +52,7 @@ diffchunk/
 ```python
 def load_diff(
     file_path: str,
+    working_directory: str,
     max_chunk_lines: int = 4000,
     skip_trivial: bool = True,
     skip_generated: bool = True,
@@ -59,6 +60,15 @@ def load_diff(
     exclude_patterns: str = None
 ) -> dict
 ```
+
+**Parameters:**
+- `file_path`: Path to diff file (absolute or relative to working_directory)
+- `working_directory`: Directory to resolve relative paths from (required)
+- `max_chunk_lines`: Maximum lines per chunk (default: 4000)
+- `skip_trivial`: Skip whitespace-only changes (default: true)
+- `skip_generated`: Skip build artifacts, lock files (default: true)
+- `include_patterns`: Comma-separated file patterns to include
+- `exclude_patterns`: Comma-separated file patterns to exclude
 
 Returns: Overview with total chunks, file count, basic statistics
 
@@ -132,7 +142,7 @@ class ChunkInfo:
 ### Basic Navigation
 
 ```python
-load_diff("/tmp/feature.diff")
+load_diff("/tmp/feature.diff", "/path/to/project")
 list_chunks()  # See all chunks with file info
 get_chunk(1)   # Analyze first chunk
 ```
@@ -147,6 +157,10 @@ find_chunks_for_files("src/*")       # Source directory → [1, 3, 4]
 
 ## Configuration
 
+### Required Parameters
+
+- `working_directory`: **Required**. Directory for resolving relative file paths. Must be provided by MCP client to ensure correct path resolution.
+
 ### Filtering Options
 
 - `skip_trivial`: Skip whitespace-only changes (default: true)
@@ -159,6 +173,14 @@ find_chunks_for_files("src/*")       # Source directory → [1, 3, 4]
 - Chunk size: 4000 lines (LLM context optimized)
 - File boundary preference over line limits
 - Preserve diff context and headers
+
+### Path Resolution
+
+The server resolves file paths as follows:
+1. If `file_path` is absolute, use it directly
+2. If `file_path` is relative, resolve against `working_directory`
+3. Both paths are normalized for cross-platform compatibility (Windows/Unix)
+4. User home directory expansion (`~`) is supported
 
 ## Performance
 

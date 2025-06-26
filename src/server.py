@@ -53,7 +53,11 @@ class DiffChunkServer:
                         "properties": {
                             "file_path": {
                                 "type": "string",
-                                "description": "Path to the diff file to load",
+                                "description": "Path to the diff file to load (absolute or relative to working_directory)",
+                            },
+                            "working_directory": {
+                                "type": "string",
+                                "description": "Working directory to resolve relative file paths from",
                             },
                             "max_chunk_lines": {
                                 "type": "integer",
@@ -79,7 +83,7 @@ class DiffChunkServer:
                                 "description": "Comma-separated glob patterns for files to exclude",
                             },
                         },
-                        "required": ["file_path"],
+                        "required": ["file_path", "working_directory"],
                     },
                 ),
                 Tool(

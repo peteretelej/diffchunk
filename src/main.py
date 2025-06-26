@@ -34,9 +34,14 @@ MCP Client Configuration:
     parser.parse_args()
 
     try:
+        print(
+            f"Starting diffchunk MCP server v{version('diffchunk')}...", file=sys.stderr
+        )
+        print("Server ready - waiting for MCP client connection", file=sys.stderr)
         server = DiffChunkServer()
         asyncio.run(server.run())
     except KeyboardInterrupt:
+        print("Server shutdown requested", file=sys.stderr)
         sys.exit(0)
     except Exception as e:
         print(f"Error starting diffchunk MCP server: {e}", file=sys.stderr)

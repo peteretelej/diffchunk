@@ -37,7 +37,7 @@ class TestMCPComponents:
         tools = DiffChunkTools()
 
         # 1. Load diff
-        result = tools.load_diff(react_diff_file, max_chunk_lines=3000)
+        result = tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=3000)
         assert result["chunks"] > 0
         assert result["files"] > 0
         assert result["file_path"] == react_diff_file
@@ -101,21 +101,21 @@ class TestMCPComponents:
 
         # Test invalid file
         with pytest.raises(ValueError, match="not found"):
-            tools.load_diff("/nonexistent/file.diff")
+            tools.load_diff("/nonexistent/file.diff", "/tmp")
 
         # Test invalid parameters
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            tools.load_diff("")
+            tools.load_diff("", "/tmp")
 
         with pytest.raises(ValueError, match="must be a positive integer"):
-            tools.load_diff("some_file.diff", max_chunk_lines=0)
+            tools.load_diff("some_file.diff", "/tmp", max_chunk_lines=0)
 
     def test_diffchunk_tools_validation(self, react_diff_file):
         """Test input validation in DiffChunkTools."""
         tools = DiffChunkTools()
 
         # Load valid diff first
-        tools.load_diff(react_diff_file)
+        tools.load_diff(react_diff_file, "/tmp")
 
         # Test invalid chunk numbers
         with pytest.raises(ValueError, match="must be a positive integer"):
@@ -158,19 +158,27 @@ class TestMCPComponents:
         tools = DiffChunkTools()
 
         # Test with different chunk sizes
-        result_small = tools.load_diff(go_diff_file, max_chunk_lines=1000)
-        result_large = tools.load_diff(go_diff_file, max_chunk_lines=8000)
+        result_small = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=1000)
+        result_large = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=8000)
 
         # Smaller chunks should generally create more chunks
         assert result_small["chunks"] >= result_large["chunks"]
 
         # Test with filtering disabled
         result_no_filter = tools.load_diff(
-            go_diff_file, max_chunk_lines=5000, skip_trivial=False, skip_generated=False
+            go_diff_file,
+            "/tmp",
+            max_chunk_lines=5000,
+            skip_trivial=False,
+            skip_generated=False,
         )
 
         result_filtered = tools.load_diff(
-            go_diff_file, max_chunk_lines=5000, skip_trivial=True, skip_generated=True
+            go_diff_file,
+            "/tmp",
+            max_chunk_lines=5000,
+            skip_trivial=True,
+            skip_generated=True,
         )
 
         # Filtered version should have fewer or equal files
@@ -179,7 +187,7 @@ class TestMCPComponents:
     def test_pattern_matching_functionality(self, react_diff_file):
         """Test pattern matching works correctly."""
         tools = DiffChunkTools()
-        tools.load_diff(react_diff_file, max_chunk_lines=2000)
+        tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=2000)
 
         # Test various patterns
         patterns_to_test = [
@@ -209,7 +217,7 @@ class TestMCPComponents:
     def test_chunk_content_structure(self, react_diff_file):
         """Test that chunk content has the expected structure."""
         tools = DiffChunkTools()
-        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+        tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=3000)
 
         chunks = tools.list_chunks()
 
@@ -246,7 +254,7 @@ class TestMCPComponents:
 
         # Measure load time
         start_time = time.time()
-        result = tools.load_diff(go_diff_file, max_chunk_lines=5000)
+        result = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=5000)
         load_time = time.time() - start_time
 
         # Should handle large diff quickly (within 10 seconds)
