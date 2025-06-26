@@ -14,12 +14,14 @@ uv run ruff format --check
 uv run mypy src/
 
 # 3. Build verification
-uv build
-ls dist/  # Should show .whl and .tar.gz files
+rm -rf dist/  # Clean previous builds
+uv build     # Creates both .whl and .tar.gz
+ls dist/      # Should show both diffchunk-0.1.0-py3-none-any.whl and diffchunk-0.1.0.tar.gz
 
 # 4. Local installation test
 pip install dist/diffchunk-*.whl
-diffchunk-mcp --help  # Should work without errors
+diffchunk-mcp --help     # Should show help message
+diffchunk-mcp --version  # Should show version number
 ```
 
 ### Metadata Completeness

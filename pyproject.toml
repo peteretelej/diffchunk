@@ -1,17 +1,38 @@
 [project]
 name = "diffchunk"
 version = "0.1.0"
-description = "MCP server for navigating large diff files"
+description = "MCP server for navigating large diff files with intelligent chunking"
 readme = "README.md"
 requires-python = ">=3.10"
+license = {text = "MIT"}
+keywords = ["mcp", "diff", "parsing", "llm", "ai-tools"]
 authors = [
     {name = "Peter Etelej", email = "peter@etelej.com"}
 ]
-license = {text = "MIT"}
+maintainers = [
+    {name = "Peter Etelej", email = "peter@etelej.com"}
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: OS Independent",
+]
 dependencies = [
     "click>=8.2.1",
     "mcp>=1.10.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/peteretelej/diffchunk"
+Repository = "https://github.com/peteretelej/diffchunk.git"
+Issues = "https://github.com/peteretelej/diffchunk/issues"
+Documentation = "https://github.com/peteretelej/diffchunk#readme"
 
 [project.scripts]
 diffchunk-mcp = "src.main:main"

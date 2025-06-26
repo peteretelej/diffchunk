@@ -26,12 +26,10 @@ MCP Client Configuration:
   }
         """,
     )
-    parser.add_argument(
-        "--version", action="version", version="diffchunk 0.1.0"
-    )
-    
-    args = parser.parse_args()
-    
+    parser.add_argument("--version", action="version", version="diffchunk 0.1.0")
+
+    parser.parse_args()
+
     try:
         server = DiffChunkServer()
         asyncio.run(server.run())
