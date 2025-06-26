@@ -3,6 +3,7 @@
 import argparse
 import asyncio
 import sys
+from importlib.metadata import version
 from .server import DiffChunkServer
 
 
@@ -26,7 +27,7 @@ MCP Client Configuration:
   }
         """,
     )
-    parser.add_argument("--version", action="version", version="diffchunk 0.1.0")
+    parser.add_argument("--version", action="version", version=f"diffchunk {version('diffchunk')}")
 
     parser.parse_args()
 

@@ -8,15 +8,15 @@
 
 **Release Process:**
 ```bash
-# 1. Update version in pyproject.toml
+# 1. Update version in pyproject.toml (e.g., "0.1.1")
 # 2. Commit changes
 git add .
-git commit -m "Prepare release v0.1.0"
+git commit -m "Prepare release v0.1.1"
 
 # 3. Create and push tag
-git tag v0.1.0
+git tag v0.1.1
 git push origin main
-git push origin v0.1.0
+git push origin v0.1.1
 ```
 
 GitHub Actions automatically:
