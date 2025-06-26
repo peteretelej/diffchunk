@@ -7,7 +7,6 @@ requires-python = ">=3.10"
 authors = [
     {name = "Peter Etelej", email = "peter@etelej.com"}
 ]
-license = {text = "MIT"}
 dependencies = [
     "click>=8.2.1",
     "mcp>=1.10.0",
@@ -28,5 +27,6 @@ dev = [
     "mypy>=1.16.1",
     "pytest>=8.4.1",
     "pytest-asyncio>=0.25.0",
+    "pytest-cov>=6.0.0",
     "ruff>=0.12.0",
 ]

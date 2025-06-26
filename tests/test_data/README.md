@@ -15,14 +15,14 @@ This directory contains real diff files from popular open-source projects for te
 - **Source**: dotnet/core repository
 - **Command**: `git diff v8.0.0..v9.0.0`
 - **Description**: Major .NET Core version upgrade diff
-- **License**: MIT
+- **License**: MIT (original project)
 - **Use case**: Testing C#/.NET ecosystem diffs, large refactoring patterns
 
 ### `react_18.0_to_18.3.diff` (~2.1MB)
 - **Source**: facebook/react repository  
 - **Command**: `git diff v18.0.0..v18.3.0`
 - **Description**: React library updates and bug fixes
-- **License**: MIT
+- **License**: MIT (original project)
 - **Use case**: Testing JavaScript/JSX files, medium-sized diffs, build system changes
 
 ## Test Scenarios
