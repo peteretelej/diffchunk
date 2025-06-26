@@ -164,3 +164,137 @@ load_diff(
 - **Context preservation**: Maintain file relationships and diff metadata
 - **Language agnostic**: Works with any codebase or diff format
 - **Enterprise ready**: Handles large feature branches and refactoring diffs
+
+## Development
+
+### Prerequisites
+
+- Python 3.10+
+- [uv](https://docs.astral.sh/uv/) package manager
+
+### Local Setup
+
+**Windows:**
+```cmd
+# Install uv
+powershell -ExecutionPolicy ByPass -c "irm https://astral.sh/uv/install.ps1 | iex"
+
+# Clone and setup
+git clone https://github.com/peteretelej/diffchunk.git
+cd diffchunk
+uv sync
+```
+
+**Linux/macOS:**
+```bash
+# Install uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+
+# Clone and setup
+git clone https://github.com/peteretelej/diffchunk.git
+cd diffchunk
+uv sync
+```
+
+### Running the MCP Server
+
+```bash
+uv run src/main.py
+```
+
+### Testing
+
+**Run tests:**
+```bash
+uv run pytest
+```
+
+**Test with real data:**
+```bash
+# Load test diff file
+echo 'load_diff("tests/test_data/go_version_upgrade_1.22_to_1.23.diff")' | uv run src/main.py
+
+# Or create your own test diff
+git diff HEAD~10..HEAD > test.diff
+echo 'load_diff("test.diff")' | uv run src/main.py
+```
+
+### Code Quality
+
+**Formatting and linting:**
+```bash
+uv run ruff check
+uv run ruff format
+```
+
+**Type checking:**
+```bash
+uv run mypy src/
+```
+
+### Project Structure
+
+```
+diffchunk/
+├── src/
+│   ├── __init__.py       # Package initialization
+│   ├── main.py           # CLI entry point
+│   ├── server.py         # MCP server implementation
+│   ├── tools.py          # MCP tool functions
+│   ├── models.py         # Data models
+│   ├── parser.py         # Diff parsing logic
+│   └── chunker.py        # Chunking engine
+├── tests/
+│   └── test_data/        # Real diff files for testing
+├── docs/
+│   └── designs/          # Implementation plans
+├── pyproject.toml        # Project configuration
+└── README.md
+```
+
+### MCP Integration Testing
+
+1. **Start the server:**
+   ```bash
+   uv run src/main.py
+   ```
+
+2. **Test with MCP client** (e.g., Claude Desktop):
+   Add to MCP configuration:
+   ```json
+   {
+     "mcpServers": {
+       "diffchunk-dev": {
+         "command": "uv",
+         "args": ["run", "src/main.py"],
+         "cwd": "/path/to/diffchunk"
+       }
+     }
+   }
+   ```
+
+3. **Manual testing:**
+   ```bash
+   # Create test diff
+   git diff HEAD~5..HEAD > test.diff
+   
+   # Test server
+   echo '{"method": "tools/call", "params": {"name": "load_diff", "arguments": {"file_path": "test.diff"}}}' | uv run src/main.py
+   ```
+
+### Contributing
+
+1. Fork the repository
+2. Create a feature branch: `git checkout -b feature-name`
+3. Make changes and test: `uv run pytest`
+4. Format code: `uv run ruff format`
+5. Submit pull request
+
+### Troubleshooting
+
+**Common issues:**
+
+- **Import errors**: Ensure you're using `uv run` for all commands
+- **File not found**: Use absolute paths for diff files or ensure correct working directory
+- **Permission errors**: Check file permissions for diff files
+- **Memory issues**: Use smaller `max_chunk_lines` for very large diffs
