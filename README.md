@@ -167,12 +167,31 @@ load_diff(
 
 ## Development
 
+### Quick Setup
+
+```bash
+# Install uv (if not already installed)
+curl -LsSf https://astral.sh/uv/install.sh | sh  # Linux/macOS
+# OR: powershell -c "irm https://astral.sh/uv/install.ps1 | iex"  # Windows
+
+# Clone and setup
+git clone https://github.com/peteretelej/diffchunk.git
+cd diffchunk
+uv sync
+
+# Run tests to verify setup
+uv run pytest
+
+# Start MCP server
+uv run python -m src.main
+```
+
 ### Prerequisites
 
 - Python 3.10+
 - [uv](https://docs.astral.sh/uv/) package manager
 
-### Local Setup
+### Detailed Setup
 
 **Windows:**
 ```cmd
@@ -199,24 +218,34 @@ uv sync
 ### Running the MCP Server
 
 ```bash
-uv run src/main.py
+uv run python -m src.main
 ```
 
 ### Testing
 
-**Run tests:**
+**Run all tests:**
 ```bash
 uv run pytest
 ```
 
-**Test with real data:**
+**Run specific test suites:**
 ```bash
-# Load test diff file
-echo 'load_diff("tests/test_data/go_version_upgrade_1.22_to_1.23.diff")' | uv run src/main.py
+# Integration tests with real diff files
+uv run pytest tests/test_integration.py -v
 
-# Or create your own test diff
+# MCP component tests  
+uv run pytest tests/test_mcp_components.py -v
+```
+
+**Test with real data:**
+The tests automatically use real diff files from `tests/test_data/`. To manually test:
+
+```bash
+# Create your own test diff
 git diff HEAD~10..HEAD > test.diff
-echo 'load_diff("test.diff")' | uv run src/main.py
+
+# Then use the MCP client to test load_diff tool
+# (see MCP Integration Testing section below)
 ```
 
 ### Code Quality
@@ -254,40 +283,59 @@ diffchunk/
 
 ### MCP Integration Testing
 
-1. **Start the server:**
+1. **Start the server locally:**
    ```bash
-   uv run src/main.py
+   uv run python -m src.main
    ```
 
 2. **Test with MCP client** (e.g., Claude Desktop):
-   Add to MCP configuration:
+   Add to your MCP client configuration (usually `~/.config/claude-desktop/claude_desktop_config.json`):
    ```json
    {
      "mcpServers": {
        "diffchunk-dev": {
          "command": "uv",
-         "args": ["run", "src/main.py"],
-         "cwd": "/path/to/diffchunk"
+         "args": ["run", "python", "-m", "src.main"],
+         "cwd": "/absolute/path/to/diffchunk"
        }
      }
    }
    ```
 
-3. **Manual testing:**
+3. **Verify server works:**
    ```bash
    # Create test diff
    git diff HEAD~5..HEAD > test.diff
    
-   # Test server
-   echo '{"method": "tools/call", "params": {"name": "load_diff", "arguments": {"file_path": "test.diff"}}}' | uv run src/main.py
+   # Use MCP client or automated tests
+   uv run pytest tests/test_mcp_components.py::TestMCPComponents::test_diffchunk_tools_complete_workflow -v
    ```
+
+### Development Workflow
+
+**Making changes:**
+```bash
+# Make code changes
+# ...
+
+# Run tests
+uv run pytest
+
+# Check code quality
+uv run ruff check
+uv run ruff format
+uv run mypy src/
+
+# Test MCP server manually (optional)
+uv run python -m src.main
+```
 
 ### Contributing
 
 1. Fork the repository
 2. Create a feature branch: `git checkout -b feature-name`
 3. Make changes and test: `uv run pytest`
-4. Format code: `uv run ruff format`
+4. Check code quality: `uv run ruff check && uv run ruff format`
 5. Submit pull request
 
 ### Troubleshooting

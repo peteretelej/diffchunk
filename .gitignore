@@ -73,4 +73,5 @@ Thumbs.db
 # Project specific
 *.diff
 *.patch
+!tests/test_data/*.diff
 test_output/

@@ -1,45 +1,32 @@
 [project]
 name = "diffchunk"
 version = "0.1.0"
-description = "A Python CLI tool that breaks large diff files into manageable chunks for LLM analysis"
+description = "MCP server for navigating large diff files"
+readme = "README.md"
+requires-python = ">=3.10"
 authors = [
     {name = "Peter Etelej", email = "peter@etelej.com"}
 ]
-readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
-dependencies = []
-
-[project.optional-dependencies]
-dev = [
-    "pytest>=7.0.0",
-    "ruff>=0.1.0",
-    "mypy>=1.0.0",
+dependencies = [
+    "click>=8.2.1",
+    "mcp>=1.10.0",
 ]
 
 [project.scripts]
-diffchunk = "diffchunk.cli:main"
+diffchunk-mcp = "src.main:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-[tool.ruff]
-line-length = 88
-target-version = "py38"
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "UP", "S", "B", "A", "C4", "T20"]
-ignore = ["E501", "S101"]
-
-[tool.mypy]
-python_version = "3.8"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
 
 [dependency-groups]
 dev = [
-    "pytest>=8.3.5",
+    "mypy>=1.16.1",
+    "pytest>=8.4.1",
+    "pytest-asyncio>=0.25.0",
     "ruff>=0.12.0",
 ]
