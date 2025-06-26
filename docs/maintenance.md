@@ -2,75 +2,38 @@
 
 ## Publishing Releases
 
-### Manual Publishing (Current Process)
-
 **Prerequisites:**
-- PyPI account with appropriate permissions
-- `uv` installed locally
+- GitHub repository secret `PYPI_API_TOKEN` configured
+- Version updated in `pyproject.toml`
 
-**Steps:**
+**Release Process:**
+```bash
+# 1. Update version in pyproject.toml
+# 2. Commit changes
+git add .
+git commit -m "Prepare release v0.1.0"
 
-1. **Prepare release:**
-   ```bash
-   # Update version in pyproject.toml
-   # Update CHANGELOG.md if exists
-   # Commit changes
-   git add .
-   git commit -m "Prepare release v0.1.0"
-   ```
+# 3. Create and push tag
+git tag v0.1.0
+git push origin main
+git push origin v0.1.0
+```
 
-2. **Build package:**
-   ```bash
-   uv build
-   ```
+GitHub Actions automatically:
+- Runs tests and builds package
+- Publishes to PyPI
+- Creates GitHub release with artifacts
 
-3. **Test on TestPyPI (recommended):**
-   ```bash
-   uv publish --repository testpypi
-   
-   # Test installation from TestPyPI
-   pip install --index-url https://test.pypi.org/simple/ diffchunk
-   ```
+**Manual Testing (optional):**
+```bash
+# Test on TestPyPI first
+uv publish --publish-url https://test.pypi.org/legacy/
+# Username: __token__, Password: TestPyPI token
 
-4. **Publish to PyPI:**
-   ```bash
-   uv publish
-   ```
-
-5. **Create GitHub release:**
-   ```bash
-   # Tag the release
-   git tag v0.1.0
-   git push origin v0.1.0
-   
-   # GitHub Actions will automatically create the release
-   ```
-
-### Automated Publishing (Future Setup)
-
-Once manual publishing is established:
-
-1. **Add PyPI token to GitHub secrets:**
-   - Go to PyPI → Account settings → API tokens
-   - Create token for `diffchunk` project
-   - Add `PYPI_API_TOKEN` to GitHub repository secrets
-
-2. **Enable automated workflow:**
-   - Uncomment the `publish-pypi` job in `.github/workflows/release.yml`
-   - Commit the change
-
-3. **Release process becomes:**
-   ```bash
-   # Just push a version tag
-   git tag v0.2.0
-   git push origin v0.2.0
-   
-   # GitHub Actions handles the rest:
-   # - Runs tests
-   # - Builds package  
-   # - Publishes to PyPI
-   # - Creates GitHub release
-   ```
+# Verify installation
+pip install --index-url https://test.pypi.org/simple/ --extra-index-url https://pypi.org/simple/ diffchunk
+diffchunk-mcp --version
+```
 
 ## CI/CD Maintenance
 
