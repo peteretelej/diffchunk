@@ -36,15 +36,15 @@ class TestMCPComponents:
         """Test complete workflow with DiffChunkTools."""
         tools = DiffChunkTools()
 
-        # 1. Load diff
-        result = tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=3000)
+        # 1. Load diff (optional - for custom settings)
+        result = tools.load_diff(react_diff_file, max_chunk_lines=3000)
         assert result["chunks"] > 0
         assert result["files"] > 0
         assert result["file_path"] == react_diff_file
         total_chunks = result["chunks"]
 
-        # 2. List chunks
-        chunks = tools.list_chunks()
+        # 2. List chunks (auto-loads if needed)
+        chunks = tools.list_chunks(react_diff_file)
         assert len(chunks) == total_chunks
         assert all("chunk" in chunk for chunk in chunks)
         assert all("files" in chunk for chunk in chunks)
@@ -52,22 +52,22 @@ class TestMCPComponents:
         assert all("summary" in chunk for chunk in chunks)
 
         # 3. Get chunk content
-        chunk_content = tools.get_chunk(1)
+        chunk_content = tools.get_chunk(react_diff_file, 1)
         assert isinstance(chunk_content, str)
         assert len(chunk_content) > 0
         assert "=== Chunk 1 of" in chunk_content
         assert "diff --git" in chunk_content
 
         # Get chunk without context
-        chunk_no_context = tools.get_chunk(1, include_context=False)
+        chunk_no_context = tools.get_chunk(react_diff_file, 1, include_context=False)
         assert isinstance(chunk_no_context, str)
         assert "=== Chunk 1 of" not in chunk_no_context
         assert len(chunk_no_context) < len(chunk_content)
 
         # 4. Find chunks by pattern
-        js_chunks = tools.find_chunks_for_files("*.js")
-        json_chunks = tools.find_chunks_for_files("*.json")
-        all_chunks = tools.find_chunks_for_files("*")
+        js_chunks = tools.find_chunks_for_files(react_diff_file, "*.js")
+        json_chunks = tools.find_chunks_for_files(react_diff_file, "*.json")
+        all_chunks = tools.find_chunks_for_files(react_diff_file, "*")
 
         assert isinstance(js_chunks, list)
         assert isinstance(json_chunks, list)
@@ -82,57 +82,111 @@ class TestMCPComponents:
         # 5. Test overview functionality
         overview = tools.get_current_overview()
         assert overview["loaded"] is True
-        assert overview["file_path"] == react_diff_file
-        assert overview["chunks"] == total_chunks
+        assert overview["total_sessions"] >= 1
+        # Find our file in the sessions
+        session_found = any(
+            s["file_path"] == react_diff_file for s in overview["sessions"]
+        )
+        assert session_found
+
+    def test_diffchunk_tools_auto_loading(self, react_diff_file):
+        """Test auto-loading functionality."""
+        tools = DiffChunkTools()
+
+        # Test that tools auto-load when called without explicit load_diff
+        chunks = tools.list_chunks(react_diff_file)
+        assert len(chunks) > 0
+
+        # Should work for other tools too
+        chunk_content = tools.get_chunk(react_diff_file, 1)
+        assert len(chunk_content) > 0
+
+        js_chunks = tools.find_chunks_for_files(react_diff_file, "*.js")
+        assert isinstance(js_chunks, list)
 
     def test_diffchunk_tools_error_handling(self):
         """Test error handling in DiffChunkTools."""
         tools = DiffChunkTools()
 
-        # Test operations without loaded diff
-        with pytest.raises(ValueError, match="No diff loaded"):
-            tools.list_chunks()
+        # Test with invalid file paths
+        with pytest.raises(ValueError, match="Cannot access file"):
+            tools.list_chunks("/nonexistent/file.diff")
 
-        with pytest.raises(ValueError, match="No diff loaded"):
-            tools.get_chunk(1)
+        with pytest.raises(ValueError, match="Cannot access file"):
+            tools.get_chunk("/nonexistent/file.diff", 1)
 
-        with pytest.raises(ValueError, match="No diff loaded"):
-            tools.find_chunks_for_files("*.py")
+        with pytest.raises(ValueError, match="Cannot access file"):
+            tools.find_chunks_for_files("/nonexistent/file.diff", "*.py")
 
         # Test invalid file
         with pytest.raises(ValueError, match="not found"):
-            tools.load_diff("/nonexistent/file.diff", "/tmp")
+            tools.load_diff("/nonexistent/file.diff")
 
         # Test invalid parameters
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            tools.load_diff("", "/tmp")
+            tools.load_diff("")
 
         with pytest.raises(ValueError, match="must be a positive integer"):
-            tools.load_diff("some_file.diff", "/tmp", max_chunk_lines=0)
+            tools.load_diff("some_file.diff", max_chunk_lines=0)
 
     def test_diffchunk_tools_validation(self, react_diff_file):
         """Test input validation in DiffChunkTools."""
         tools = DiffChunkTools()
 
-        # Load valid diff first
-        tools.load_diff(react_diff_file, "/tmp")
-
         # Test invalid chunk numbers
         with pytest.raises(ValueError, match="must be a positive integer"):
-            tools.get_chunk(0)
+            tools.get_chunk(react_diff_file, 0)
 
         with pytest.raises(ValueError, match="must be a positive integer"):
-            tools.get_chunk(-1)
+            tools.get_chunk(react_diff_file, -1)
 
         with pytest.raises(ValueError, match="must be a positive integer"):
-            tools.get_chunk("not_a_number")  # type: ignore
+            tools.get_chunk(react_diff_file, "not_a_number")  # type: ignore
 
         # Test invalid patterns
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            tools.find_chunks_for_files("")
+            tools.find_chunks_for_files(react_diff_file, "")
 
         with pytest.raises(ValueError, match="must be a non-empty string"):
-            tools.find_chunks_for_files("   ")
+            tools.find_chunks_for_files(react_diff_file, "   ")
+
+    def test_diffchunk_tools_multi_file_support(self, react_diff_file, go_diff_file):
+        """Test multiple diff files can be loaded simultaneously."""
+        tools = DiffChunkTools()
+
+        # Load two different diff files
+        react_result = tools.load_diff(react_diff_file, max_chunk_lines=2000)
+        go_result = tools.load_diff(go_diff_file, max_chunk_lines=1500)
+
+        # Both should be loaded with different stats
+        assert react_result["chunks"] > 0
+        assert go_result["chunks"] > 0
+        assert react_result["file_path"] == react_diff_file
+        assert go_result["file_path"] == go_diff_file
+
+        # Should be able to work with both files independently
+        react_chunks = tools.list_chunks(react_diff_file)
+        go_chunks = tools.list_chunks(go_diff_file)
+
+        assert len(react_chunks) == react_result["chunks"]
+        assert len(go_chunks) == go_result["chunks"]
+
+        # Get chunks from both files
+        react_chunk1 = tools.get_chunk(react_diff_file, 1)
+        go_chunk1 = tools.get_chunk(go_diff_file, 1)
+
+        assert react_chunk1 != go_chunk1  # Should be different content
+        assert "=== Chunk 1 of" in react_chunk1
+        assert "=== Chunk 1 of" in go_chunk1
+
+        # Overview should show both sessions
+        overview = tools.get_current_overview()
+        assert overview["loaded"] is True
+        assert overview["total_sessions"] >= 2
+
+        file_paths = [s["file_path"] for s in overview["sessions"]]
+        assert react_diff_file in file_paths
+        assert go_diff_file in file_paths
 
     def test_mcp_server_creation(self):
         """Test MCP server can be created successfully."""
@@ -158,8 +212,8 @@ class TestMCPComponents:
         tools = DiffChunkTools()
 
         # Test with different chunk sizes
-        result_small = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=1000)
-        result_large = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=8000)
+        result_small = tools.load_diff(go_diff_file, max_chunk_lines=1000)
+        result_large = tools.load_diff(go_diff_file, max_chunk_lines=8000)
 
         # Smaller chunks should generally create more chunks
         assert result_small["chunks"] >= result_large["chunks"]
@@ -167,7 +221,6 @@ class TestMCPComponents:
         # Test with filtering disabled
         result_no_filter = tools.load_diff(
             go_diff_file,
-            "/tmp",
             max_chunk_lines=5000,
             skip_trivial=False,
             skip_generated=False,
@@ -175,7 +228,6 @@ class TestMCPComponents:
 
         result_filtered = tools.load_diff(
             go_diff_file,
-            "/tmp",
             max_chunk_lines=5000,
             skip_trivial=True,
             skip_generated=True,
@@ -187,7 +239,7 @@ class TestMCPComponents:
     def test_pattern_matching_functionality(self, react_diff_file):
         """Test pattern matching works correctly."""
         tools = DiffChunkTools()
-        tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=2000)
+        tools.load_diff(react_diff_file, max_chunk_lines=2000)
 
         # Test various patterns
         patterns_to_test = [
@@ -201,7 +253,7 @@ class TestMCPComponents:
         ]
 
         for pattern in patterns_to_test:
-            chunks = tools.find_chunks_for_files(pattern)
+            chunks = tools.find_chunks_for_files(react_diff_file, pattern)
             assert isinstance(chunks, list)
 
             # All returned chunk numbers should be valid
@@ -210,16 +262,16 @@ class TestMCPComponents:
                 assert chunk_num >= 1
 
                 # Verify we can actually get this chunk
-                chunk_content = tools.get_chunk(chunk_num)
+                chunk_content = tools.get_chunk(react_diff_file, chunk_num)
                 assert isinstance(chunk_content, str)
                 assert len(chunk_content) > 0
 
     def test_chunk_content_structure(self, react_diff_file):
         """Test that chunk content has the expected structure."""
         tools = DiffChunkTools()
-        tools.load_diff(react_diff_file, "/tmp", max_chunk_lines=3000)
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
 
-        chunks = tools.list_chunks()
+        chunks = tools.list_chunks(react_diff_file)
 
         for i, chunk_info in enumerate(chunks, 1):
             # Test chunk info structure
@@ -232,8 +284,12 @@ class TestMCPComponents:
             assert len(chunk_info["summary"]) > 0
 
             # Test chunk content
-            content_with_context = tools.get_chunk(i, include_context=True)
-            content_without_context = tools.get_chunk(i, include_context=False)
+            content_with_context = tools.get_chunk(
+                react_diff_file, i, include_context=True
+            )
+            content_without_context = tools.get_chunk(
+                react_diff_file, i, include_context=False
+            )
 
             # With context should be longer
             assert len(content_with_context) > len(content_without_context)
@@ -254,7 +310,7 @@ class TestMCPComponents:
 
         # Measure load time
         start_time = time.time()
-        result = tools.load_diff(go_diff_file, "/tmp", max_chunk_lines=5000)
+        result = tools.load_diff(go_diff_file, max_chunk_lines=5000)
         load_time = time.time() - start_time
 
         # Should handle large diff quickly (within 10 seconds)
@@ -267,7 +323,7 @@ class TestMCPComponents:
 
         # Measure navigation time
         start_time = time.time()
-        chunks = tools.list_chunks()
+        chunks = tools.list_chunks(go_diff_file)
         list_time = time.time() - start_time
 
         assert list_time < 2.0, f"List chunks took too long: {list_time}s"
@@ -275,7 +331,7 @@ class TestMCPComponents:
 
         # Measure chunk retrieval time
         start_time = time.time()
-        content = tools.get_chunk(1)
+        content = tools.get_chunk(go_diff_file, 1)
         get_time = time.time() - start_time
 
         assert get_time < 1.0, f"Get chunk took too long: {get_time}s"

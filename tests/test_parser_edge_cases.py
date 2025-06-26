@@ -28,7 +28,7 @@ class TestParserEdgeCases:
         try:
             # Should handle malformed diff - may raise error or return empty result
             try:
-                result = tools.load_diff(temp_file, "/tmp")
+                result = tools.load_diff(temp_file)
                 # If it succeeds, should have no chunks
                 assert result["chunks"] == 0
                 assert result["files"] == 0
@@ -56,7 +56,7 @@ class TestParserEdgeCases:
             temp_file = f.name
 
         try:
-            result = tools.load_diff(temp_file, "/tmp")
+            result = tools.load_diff(temp_file)
 
             # Should parse successfully and include binary file
             assert result["chunks"] > 0
@@ -81,14 +81,14 @@ class TestParserEdgeCases:
             temp_file = f.name
 
         try:
-            result = tools.load_diff(temp_file, "/tmp")
+            result = tools.load_diff(temp_file)
 
             # Should parse unicode content successfully
             assert result["chunks"] > 0
             assert result["files"] >= 1
 
             # Get chunk content and verify unicode handling
-            chunk_content = tools.get_chunk(1)
+            chunk_content = tools.get_chunk(temp_file, 1)
             assert isinstance(chunk_content, str)
 
         finally:
@@ -115,15 +115,15 @@ class TestParserEdgeCases:
             temp_file = f.name
 
         try:
-            result = tools.load_diff(temp_file, "/tmp")
+            result = tools.load_diff(temp_file)
 
             # Should parse files - exact behavior may vary
             assert result["chunks"] >= 0
 
             # If we have chunks, test pattern matching
             if result["chunks"] > 0:
-                js_chunks = tools.find_chunks_for_files("*.js")
-                txt_chunks = tools.find_chunks_for_files("*.txt")
+                js_chunks = tools.find_chunks_for_files(temp_file, "*.js")
+                txt_chunks = tools.find_chunks_for_files(temp_file, "*.txt")
                 assert isinstance(js_chunks, list)
                 assert isinstance(txt_chunks, list)
 
@@ -154,7 +154,7 @@ class TestParserEdgeCases:
 
         try:
             # Test basic pattern functionality
-            result = tools.load_diff(temp_file, "/tmp", include_patterns="*.py")
+            result = tools.load_diff(temp_file, include_patterns="*.py")
             # Should include only Python files
             assert result["files"] >= 0  # May be 0 if filtered, that's okay
 
@@ -174,7 +174,7 @@ class TestParserEdgeCases:
         try:
             # Should handle files with no changes - may error or return empty result
             try:
-                result = tools.load_diff(temp_file, "/tmp")
+                result = tools.load_diff(temp_file)
                 assert result["chunks"] >= 0
             except ValueError:
                 # If it raises an error for no changes, that's acceptable
@@ -203,7 +203,7 @@ class TestParserEdgeCases:
             temp_file = f.name
 
         try:
-            result = tools.load_diff(temp_file, "/tmp", max_chunk_lines=500)
+            result = tools.load_diff(temp_file, max_chunk_lines=500)
 
             # Should handle large hunk and potentially split into multiple chunks
             assert result["chunks"] > 0
@@ -249,10 +249,10 @@ class TestParserEdgeCases:
 
         try:
             # Test with skip_generated=True (default)
-            result_filtered = tools.load_diff(temp_file, "/tmp", skip_generated=True)
+            result_filtered = tools.load_diff(temp_file, skip_generated=True)
 
             # Test with skip_generated=False
-            result_unfiltered = tools.load_diff(temp_file, "/tmp", skip_generated=False)
+            result_unfiltered = tools.load_diff(temp_file, skip_generated=False)
 
             # Filtered should have fewer files than unfiltered
             assert result_filtered["files"] <= result_unfiltered["files"]
@@ -290,10 +290,10 @@ class TestParserEdgeCases:
 
         try:
             # Test with skip_trivial=True (default)
-            result_filtered = tools.load_diff(temp_file, "/tmp", skip_trivial=True)
+            result_filtered = tools.load_diff(temp_file, skip_trivial=True)
 
             # Test with skip_trivial=False
-            result_unfiltered = tools.load_diff(temp_file, "/tmp", skip_trivial=False)
+            result_unfiltered = tools.load_diff(temp_file, skip_trivial=False)
 
             # Both should have the substantial file
             assert result_filtered["files"] >= 1
@@ -321,7 +321,7 @@ class TestParserEdgeCases:
 
         try:
             # Should handle encoding issues gracefully
-            result = tools.load_diff(temp_file, "/tmp")
+            result = tools.load_diff(temp_file)
 
             # May succeed with some content or handle the error gracefully
             assert result["chunks"] >= 0
@@ -343,7 +343,7 @@ class TestParserEdgeCases:
 
         try:
             # Should handle incomplete headers gracefully
-            result = tools.load_diff(temp_file, "/tmp")
+            result = tools.load_diff(temp_file)
 
             # May parse successfully or skip malformed sections
             assert result["chunks"] >= 0

@@ -83,24 +83,26 @@ Add to your MCP client:
 git diff main..feature-branch > /tmp/changes.diff
 ```
 
-2. Load in LLM:
+2. Navigate and analyze (auto-loading):
 
 ```
-load_diff("/tmp/changes.diff", "/path/to/project")
-→ {"chunks": 5, "files": 23, "total_lines": 8432}
-```
-
-3. Navigate and analyze:
-
-```
-list_chunks()
+# Any tool can be called first - they auto-load with sensible defaults
+list_chunks("/tmp/changes.diff")
 → [{"chunk": 1, "files": ["api/auth.py", "models/user.py"], "lines": 1205}, ...]
 
-find_chunks_for_files("*test*")
+find_chunks_for_files("/tmp/changes.diff", "*test*")
 → [2, 4]
 
-get_chunk(1)
+get_chunk("/tmp/changes.diff", 1)
 → "=== Chunk 1 of 5 ===\ndiff --git a/api/auth.py..."
+```
+
+3. Custom settings (optional):
+
+```
+# Only needed if you want non-default chunking settings
+load_diff("/tmp/changes.diff", max_chunk_lines=2000, include_patterns="*.py")
+→ {"chunks": 8, "files": 15, "total_lines": 8432}
 ```
 
 ## Usage Examples
@@ -108,97 +110,99 @@ get_chunk(1)
 ### Large Feature Review
 
 ```bash
-git diff main..feature-auth > auth-changes.diff
+git diff main..feature-auth > /tmp/auth-changes.diff
 ```
 
 ```
-load_diff("auth-changes.diff", "/path/to/project")
-list_chunks()  # Overview of all changes
-find_chunks_for_files("*controller*")  # API endpoints → [1, 3]
-find_chunks_for_files("*test*")        # Tests → [2, 5]
-get_chunk(1)   # Analyze API changes
+# Auto-loading with default settings
+list_chunks("/tmp/auth-changes.diff")  # Overview of all changes
+find_chunks_for_files("/tmp/auth-changes.diff", "*controller*")  # API endpoints → [1, 3]
+find_chunks_for_files("/tmp/auth-changes.diff", "*test*")        # Tests → [2, 5]
+get_chunk("/tmp/auth-changes.diff", 1)   # Analyze API changes
 ```
 
 ### Targeted Analysis
 
 ```
-# Focus on specific file types
-find_chunks_for_files("*.py")       # Python code → [1, 3, 4]
-find_chunks_for_files("*.json")     # Config files → [2]
-find_chunks_for_files("src/core/*") # Core module → [1, 4]
+# Focus on specific file types (all auto-load)
+find_chunks_for_files("/tmp/feature.diff", "*.py")       # Python code → [1, 3, 4]
+find_chunks_for_files("/tmp/feature.diff", "*.json")     # Config files → [2]
+find_chunks_for_files("/tmp/feature.diff", "src/core/*") # Core module → [1, 4]
 
 # Skip to relevant sections
-get_chunk(3)  # Direct access to specific changes
+get_chunk("/tmp/feature.diff", 3)  # Direct access to specific changes
+```
+
+### Multi-File Analysis
+
+```
+# Each file maintains separate state
+list_chunks("/tmp/feature-auth.diff")     # Auth feature
+list_chunks("/tmp/feature-ui.diff")       # UI feature  
+list_chunks("/tmp/bugfix-123.diff")       # Bug fix
+
+# Work with different files simultaneously
+get_chunk("/tmp/feature-auth.diff", 1)
+get_chunk("/tmp/feature-ui.diff", 2)
 ```
 
 ## Configuration Options
 
-### load_diff Parameters
+### All Tools Require
 
-- `file_path`: Path to diff file (absolute or relative to working_directory) 
-- `working_directory`: **Required**. Directory to resolve relative file paths from
+- `absolute_file_path`: **Required**. Absolute path to diff file for all tools.
+
+### Auto-Loading Defaults
+
+When tools auto-load diffs (all tools except `load_diff`), they use:
+- `max_chunk_lines`: 4000 (LLM context optimized)
+- `skip_trivial`: true (skip whitespace-only changes)  
+- `skip_generated`: true (skip lock files, build artifacts)
+- `include_patterns`: none (include all files)
+- `exclude_patterns`: none (exclude no files)
+
+### load_diff Parameters (Optional)
+
+Use `load_diff` only when you need custom settings:
+- `absolute_file_path`: Absolute path to diff file
 - `max_chunk_lines`: Lines per chunk (default: 4000)
 - `skip_trivial`: Skip whitespace-only changes (default: true)
 - `skip_generated`: Skip build artifacts, lock files (default: true)
 - `include_patterns`: Comma-separated file patterns to include
 - `exclude_patterns`: Comma-separated file patterns to exclude
 
-### Path Resolution
+### Path Requirements
 
-The MCP server requires a `working_directory` parameter to properly resolve file paths:
-
-- **Absolute paths**: Used directly (e.g., `/home/user/project/changes.diff`)
-- **Relative paths**: Resolved against `working_directory` (e.g., `changes.diff` + `/home/user/project/`)
+- **Absolute paths only**: All file paths must be absolute (e.g., `/home/user/project/changes.diff`)
 - **Cross-platform**: Handles Windows (`C:\path`) and Unix (`/path`) formats automatically
-- **Home directory**: Supports `~` expansion for both parameters
+- **Home directory**: Supports `~` expansion (e.g., `~/project/changes.diff`)
+- **Canonical paths**: Automatically resolves symlinks and `..` references
 
 ### Examples
 
-**Absolute path:**
+**Auto-loading (recommended):**
 ```
-load_diff(
-    "/home/user/project/changes.diff",
-    "/home/user/project",
-    max_chunk_lines=2000
-)
-```
-
-**Relative path:**
-```
-load_diff(
-    "changes.diff",
-    "/home/user/project", 
-    max_chunk_lines=2000
-)
+# Just provide absolute path - uses sensible defaults
+list_chunks("/home/user/project/changes.diff")
+get_chunk("/tmp/feature.diff", 1)
+find_chunks_for_files("~/project/changes.diff", "*.py")
 ```
 
-**Windows paths:**
+**Custom settings:**
 ```
-load_diff(
-    "changes.diff",
-    "C:\\Users\\user\\project",
-    max_chunk_lines=2000
-)
-```
-
-**With filtering:**
-```
+# Use load_diff for non-default settings
 load_diff(
     "/tmp/large.diff",
-    "/path/to/project",
     max_chunk_lines=2000,
     include_patterns="*.py,*.js",
     exclude_patterns="*test*,*spec*"
 )
 ```
 
-**MCP Client Usage:**
-When using with Cline or other MCP clients, ensure the client provides both parameters:
-```json
-{
-  "file_path": "comparison_diff.patch",
-  "working_directory": "/path/to/your/project"
-}
+**Windows paths:**
+```
+list_chunks("C:\\Users\\user\\project\\changes.diff")
+get_chunk("C:\\temp\\feature.diff", 1)
 ```
 
 ## Supported Formats
@@ -216,11 +220,15 @@ When using with Cline or other MCP clients, ensure the client provides both para
 
 ## Benefits
 
+- **Auto-loading**: Seamless UX with no session management complexity
+- **Multi-file support**: Each diff file maintains separate state
+- **Change detection**: Automatic reload when files are modified  
 - **Cost reduction**: Process only relevant changes, reduce token usage
 - **Fast navigation**: Jump directly to files or areas of interest
 - **Context preservation**: Maintain file relationships and diff metadata
 - **Language agnostic**: Works with any codebase or diff format
 - **Enterprise ready**: Handles large feature branches and refactoring diffs
+- **Cross-platform**: Robust path handling for Windows/Unix systems
 
 ## Development
 
@@ -435,19 +443,23 @@ uv run python -m src.main
 **Common issues:**
 
 - **Import errors**: Ensure you're using `uv run` for all commands
-- **File not found**: Verify both `file_path` and `working_directory` are correct
-- **Path resolution errors**: Use absolute paths or double-check relative path + working directory
-- **Permission errors**: Check file permissions for diff files and working directory access
-- **Memory issues**: Use smaller `max_chunk_lines` for very large diffs
+- **File not found**: Verify the `absolute_file_path` exists and is accessible
+- **Path errors**: Use absolute paths only (no relative paths supported)
+- **Permission errors**: Check file permissions for diff files
+- **Memory issues**: Use `load_diff` with smaller `max_chunk_lines` for very large diffs
+- **File changes**: Tools automatically reload when files change, no manual intervention needed
 
 **Path troubleshooting:**
 ```bash
-# Check if file exists from working directory
-cd /your/working/directory
-ls -la your-diff-file.diff
+# Check if file exists
+ls -la /absolute/path/to/your-diff-file.diff
 
-# Use absolute paths to avoid confusion
-load_diff("/absolute/path/to/diff.patch", "/absolute/path/to/project")
+# Use absolute paths
+list_chunks("/absolute/path/to/diff.patch")  # Good
+list_chunks("./relative/path.patch")         # Won't work
+
+# Home directory works
+list_chunks("~/project/changes.diff")        # Good (expands to absolute)
 ```
 
 # License

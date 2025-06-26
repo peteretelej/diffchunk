@@ -27,7 +27,7 @@ class DiffChunkServer:
                 Resource(
                     uri="diffchunk://current",  # type: ignore
                     name="Current Diff Overview",
-                    description="Overview of the currently loaded diff file",
+                    description="Overview of all currently loaded diff files",
                     mimeType="application/json",
                 )
             ]
@@ -47,17 +47,13 @@ class DiffChunkServer:
             return [
                 Tool(
                     name="load_diff",
-                    description="Load and parse a diff file into navigable chunks",
+                    description="Load and parse a diff file into navigable chunks with custom settings",
                     inputSchema={
                         "type": "object",
                         "properties": {
-                            "file_path": {
+                            "absolute_file_path": {
                                 "type": "string",
-                                "description": "Path to the diff file to load (absolute or relative to working_directory)",
-                            },
-                            "working_directory": {
-                                "type": "string",
-                                "description": "Working directory to resolve relative file paths from",
+                                "description": "Absolute path to the diff file to load",
                             },
                             "max_chunk_lines": {
                                 "type": "integer",
@@ -83,20 +79,33 @@ class DiffChunkServer:
                                 "description": "Comma-separated glob patterns for files to exclude",
                             },
                         },
-                        "required": ["file_path", "working_directory"],
+                        "required": ["absolute_file_path"],
                     },
                 ),
                 Tool(
                     name="list_chunks",
-                    description="List all chunks with file information and summaries",
-                    inputSchema={"type": "object", "properties": {}},
-                ),
-                Tool(
-                    name="get_chunk",
-                    description="Get the content of a specific chunk",
+                    description="List all chunks with file information and summaries (auto-loads if needed)",
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "absolute_file_path": {
+                                "type": "string",
+                                "description": "Absolute path to the diff file",
+                            },
+                        },
+                        "required": ["absolute_file_path"],
+                    },
+                ),
+                Tool(
+                    name="get_chunk",
+                    description="Get the content of a specific chunk (auto-loads if needed)",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "absolute_file_path": {
+                                "type": "string",
+                                "description": "Absolute path to the diff file",
+                            },
                             "chunk_number": {
                                 "type": "integer",
                                 "description": "The chunk number to retrieve (1-indexed)",
@@ -107,21 +116,25 @@ class DiffChunkServer:
                                 "default": True,
                             },
                         },
-                        "required": ["chunk_number"],
+                        "required": ["absolute_file_path", "chunk_number"],
                     },
                 ),
                 Tool(
                     name="find_chunks_for_files",
-                    description="Find chunks containing files matching a pattern",
+                    description="Find chunks containing files matching a pattern (auto-loads if needed)",
                     inputSchema={
                         "type": "object",
                         "properties": {
+                            "absolute_file_path": {
+                                "type": "string",
+                                "description": "Absolute path to the diff file",
+                            },
                             "pattern": {
                                 "type": "string",
                                 "description": "Glob pattern to match file paths (e.g., '*.py', '*test*', 'src/*')",
-                            }
+                            },
                         },
-                        "required": ["pattern"],
+                        "required": ["absolute_file_path", "pattern"],
                     },
                 ),
             ]
@@ -140,7 +153,7 @@ class DiffChunkServer:
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
                 elif name == "list_chunks":
-                    result = self.tools.list_chunks()
+                    result = self.tools.list_chunks(**arguments)
                     return [TextContent(type="text", text=json.dumps(result, indent=2))]
 
                 elif name == "get_chunk":
@@ -172,7 +185,7 @@ class DiffChunkServer:
                 write_stream,
                 InitializationOptions(
                     server_name="diffchunk",
-                    server_version="0.1.0",
+                    server_version="0.1.3",
                     capabilities=self.app.get_capabilities(
                         notification_options=NotificationOptions(),
                         experimental_capabilities={},

@@ -90,7 +90,7 @@ class TestMCPServerErrorHandling:
         # Test that tool errors are caught and formatted
         try:
             # This should fail with missing file
-            server.tools.load_diff("/nonexistent/file.diff", "/tmp")
+            server.tools.load_diff("/nonexistent/file.diff")
         except ValueError as e:
             error_msg = f"Error in load_diff: {str(e)}"
             assert "Error in load_diff:" in error_msg
@@ -100,33 +100,33 @@ class TestMCPServerErrorHandling:
         """Test tool operations when no diff is loaded."""
         # Test list_chunks without loaded diff
         try:
-            server.tools.list_chunks()
+            server.tools.list_chunks("/nonexistent/file.diff")
         except ValueError as e:
             error_msg = f"Error in list_chunks: {str(e)}"
-            assert "Error in list_chunks: No diff loaded" in error_msg
+            assert "Error in list_chunks: Cannot access file" in error_msg
 
         # Test get_chunk without loaded diff
         try:
-            server.tools.get_chunk(1)
+            server.tools.get_chunk("/nonexistent/file.diff", 1)
         except ValueError as e:
             error_msg = f"Error in get_chunk: {str(e)}"
-            assert "Error in get_chunk: No diff loaded" in error_msg
+            assert "Error in get_chunk: Cannot access file" in error_msg
 
         # Test find_chunks_for_files without loaded diff
         try:
-            server.tools.find_chunks_for_files("*.py")
+            server.tools.find_chunks_for_files("/nonexistent/file.diff", "*.py")
         except ValueError as e:
             error_msg = f"Error in find_chunks_for_files: {str(e)}"
-            assert "Error in find_chunks_for_files: No diff loaded" in error_msg
+            assert "Error in find_chunks_for_files: Cannot access file" in error_msg
 
     def test_call_tool_invalid_arguments(self, server, react_diff_file):
         """Test tool calls with invalid arguments."""
         # Load a diff first
-        server.tools.load_diff(react_diff_file, "/tmp")
+        server.tools.load_diff(react_diff_file)
 
         # Test get_chunk with invalid chunk number
         try:
-            server.tools.get_chunk(0)
+            server.tools.get_chunk(react_diff_file, 0)
         except ValueError as e:
             error_msg = f"Error in get_chunk: {str(e)}"
             assert "Error in get_chunk:" in error_msg
@@ -134,7 +134,7 @@ class TestMCPServerErrorHandling:
 
         # Test find_chunks_for_files with empty pattern
         try:
-            server.tools.find_chunks_for_files("")
+            server.tools.find_chunks_for_files(react_diff_file, "")
         except ValueError as e:
             error_msg = f"Error in find_chunks_for_files: {str(e)}"
             assert "Error in find_chunks_for_files:" in error_msg
@@ -171,7 +171,7 @@ class TestMCPServerErrorHandling:
     def test_read_resource_current_overview(self, server, react_diff_file):
         """Test reading current overview resource."""
         # Load a diff first
-        server.tools.load_diff(react_diff_file, "/tmp")
+        server.tools.load_diff(react_diff_file)
 
         # Test reading the overview
         uri = "diffchunk://current"
@@ -182,8 +182,18 @@ class TestMCPServerErrorHandling:
             # Should be valid JSON
             overview_parsed = json.loads(result)
             assert overview_parsed["loaded"] is True
-            assert overview_parsed["file_path"] == react_diff_file
-            assert overview_parsed["chunks"] > 0
+            assert overview_parsed["total_sessions"] >= 1
+            # Find the session with the react_diff_file
+            react_session = next(
+                (
+                    s
+                    for s in overview_parsed["sessions"]
+                    if s["file_path"] == react_diff_file
+                ),
+                None,
+            )
+            assert react_session is not None
+            assert react_session["chunks"] > 0
 
     def test_server_run_method_exists(self, server):
         """Test server has run method for starting."""
@@ -209,7 +219,7 @@ class TestMCPServerErrorHandling:
     def test_json_serialization_in_responses(self, server, react_diff_file):
         """Test JSON serialization in tool responses."""
         # Load diff and test JSON responses
-        result = server.tools.load_diff(react_diff_file, "/tmp")
+        result = server.tools.load_diff(react_diff_file)
 
         # Test that result can be serialized to JSON
         json_result = json.dumps(result, indent=2)
