@@ -42,7 +42,7 @@ class DiffChunkTools:
     def _load_diff_internal(
         self,
         absolute_file_path: str,
-        max_chunk_lines: int = 4000,
+        max_chunk_lines: int = 1000,
         skip_trivial: bool = True,
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
@@ -110,7 +110,7 @@ class DiffChunkTools:
     def load_diff(
         self,
         absolute_file_path: str,
-        max_chunk_lines: int = 4000,
+        max_chunk_lines: int = 1000,
         skip_trivial: bool = True,
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
@@ -147,6 +147,8 @@ class DiffChunkTools:
                 "files": info.files,
                 "lines": info.line_count,
                 "summary": info.summary,
+                "parent_file": info.parent_file,
+                "sub_chunk_index": info.sub_chunk_index,
             }
             for info in chunk_infos
         ]

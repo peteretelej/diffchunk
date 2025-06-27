@@ -22,6 +22,8 @@ class ChunkInfo:
     files: List[str]
     line_count: int
     summary: str
+    parent_file: str | None = None
+    sub_chunk_index: int | None = None
 
 
 @dataclass
@@ -32,6 +34,8 @@ class DiffChunk:
     content: str
     files: List[str]
     line_count: int
+    parent_file: str | None = None
+    sub_chunk_index: int | None = None
 
 
 class DiffSession:
@@ -61,11 +65,19 @@ class DiffSession:
         """Get chunk info by number (1-indexed)."""
         chunk = self.get_chunk(chunk_number)
         if chunk:
+            # Create summary with parent file info if available
+            if chunk.parent_file and chunk.sub_chunk_index is not None:
+                summary = f"{chunk.parent_file} (part {chunk.sub_chunk_index}), {chunk.line_count} lines"
+            else:
+                summary = f"{len(chunk.files)} files, {chunk.line_count} lines"
+
             return ChunkInfo(
                 chunk_number=chunk.number,
                 files=chunk.files,
                 line_count=chunk.line_count,
-                summary=f"{len(chunk.files)} files, {chunk.line_count} lines",
+                summary=summary,
+                parent_file=chunk.parent_file,
+                sub_chunk_index=chunk.sub_chunk_index,
             )
         return None
 
