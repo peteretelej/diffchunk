@@ -357,6 +357,13 @@ uv run ruff format
 uv run mypy src/
 ```
 
+**Setup pre-push hook (runs all checks automatically):**
+
+```bash
+cp scripts/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
+
 ### Project Structure
 
 ```

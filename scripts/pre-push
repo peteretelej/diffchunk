@@ -1,0 +1,41 @@
+#!/bin/bash
+
+# Comprehensive code quality check script
+# Can be used manually or copied to .git/hooks/pre-push
+
+set -e  # Exit on any error
+
+echo "🚀 Running pre-push checks..."
+echo "================================"
+
+# Function to run a check and report results
+run_check() {
+    local name="$1"
+    local command="$2"
+    
+    echo "🔍 Running $name..."
+    if eval "$command"; then
+        echo "✅ $name passed!"
+    else
+        echo "❌ $name failed!"
+        echo "Please fix the issues before pushing."
+        exit 1
+    fi
+    echo ""
+}
+
+# 1. Code formatting check
+run_check "Ruff format check" "uv run ruff format --check"
+
+# 2. Linting check
+run_check "Ruff linting" "uv run ruff check"
+
+# 3. Type checking
+run_check "MyPy type checking" "uv run mypy src/"
+
+# 4. Test suite
+run_check "Test suite" "uv run pytest -x -q"
+
+echo "🎉 All pre-push checks passed!"
+echo "✅ Code is ready to push"
+echo "================================"

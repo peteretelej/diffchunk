@@ -169,7 +169,7 @@ class DiffChunker:
 
         lines = content.split("\n")
         chunks = []
-        current_chunk_lines = []
+        current_chunk_lines: List[str] = []
         current_chunk_line_count = 0
 
         # Keep track of file header (diff --git, index, +++, ---)
