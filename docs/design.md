@@ -52,7 +52,7 @@ diffchunk/
 ```python
 def load_diff(
     absolute_file_path: str,
-    max_chunk_lines: int = 4000,
+    max_chunk_lines: int = 1000,
     skip_trivial: bool = True,
     skip_generated: bool = True,
     include_patterns: str = None,
@@ -62,7 +62,7 @@ def load_diff(
 
 **Parameters:**
 - `absolute_file_path`: Absolute path to diff file
-- `max_chunk_lines`: Maximum lines per chunk (default: 4000)
+- `max_chunk_lines`: Maximum lines per chunk (default: 1000)
 - `skip_trivial`: Skip whitespace-only changes (default: true)
 - `skip_generated`: Skip build artifacts, lock files (default: true)
 - `include_patterns`: Comma-separated file patterns to include
@@ -128,7 +128,7 @@ Diff File → Canonicalize Path → Hash Content → Cache Check → Parse → F
 ### Chunking Strategy
 
 - Prefer file boundaries to maintain context
-- Respect max_chunk_lines limit (default 4000)
+- Respect max_chunk_lines limit (default 1000)
 - Track file-to-chunk mapping for navigation
 - Preserve diff headers and context lines
 
@@ -204,7 +204,7 @@ get_chunk("/tmp/feature-auth.diff", 1)    # First chunk of auth changes
 ### Auto-Loading Defaults
 
 When tools auto-load diffs, they use these defaults:
-- `max_chunk_lines`: 4000 (LLM context optimized)
+- `max_chunk_lines`: 1000 (LLM context optimized)
 - `skip_trivial`: true (skip whitespace-only changes)
 - `skip_generated`: true (skip lock files, build artifacts)
 - `include_patterns`: none (include all files)

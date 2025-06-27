@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/peteretelej/diffchunk/actions/workflows/ci.yml/badge.svg)](https://github.com/peteretelej/diffchunk/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/peteretelej/diffchunk/branch/main/graph/badge.svg)](https://codecov.io/gh/peteretelej/diffchunk)
-[![PyPI version](https://badge.fury.io/py/diffchunk.svg)](https://badge.fury.io/py/diffchunk)
+[![PyPI version](https://img.shields.io/pypi/v/diffchunk.svg)](https://pypi.org/project/diffchunk/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
@@ -155,7 +155,7 @@ get_chunk("/tmp/feature-ui.diff", 2)
 ### Auto-Loading Defaults
 
 When tools auto-load diffs (all tools except `load_diff`), they use:
-- `max_chunk_lines`: 4000 (LLM context optimized)
+- `max_chunk_lines`: 1000 (LLM context optimized)
 - `skip_trivial`: true (skip whitespace-only changes)  
 - `skip_generated`: true (skip lock files, build artifacts)
 - `include_patterns`: none (include all files)
@@ -165,7 +165,7 @@ When tools auto-load diffs (all tools except `load_diff`), they use:
 
 Use `load_diff` only when you need custom settings:
 - `absolute_file_path`: Absolute path to diff file
-- `max_chunk_lines`: Lines per chunk (default: 4000)
+- `max_chunk_lines`: Lines per chunk (default: 1000)
 - `skip_trivial`: Skip whitespace-only changes (default: true)
 - `skip_generated`: Skip build artifacts, lock files (default: true)
 - `include_patterns`: Comma-separated file patterns to include
