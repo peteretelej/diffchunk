@@ -2,52 +2,17 @@
 
 ## Overview
 
-diffchunk is an MCP server that breaks large diff files into navigable chunks. LLMs can locate specific changes by file patterns and analyze diffs that exceed context window limits.
+MCP server that chunks large diff files for efficient LLM navigation. Uses file-based state management with auto-loading tools.
 
-## Problem
-
-Large diffs present multiple issues:
-
-- **Context limits**: 50k+ line diffs exceed LLM context windows (Claude: 200k tokens ≈ 40k lines)
-- **Cost**: Large contexts consume expensive tokens unnecessarily
-- **Relevance**: Most diff content is irrelevant to specific analysis tasks
-- **Lost context**: Blind chunking breaks file relationships and diff metadata
-- **Manual overhead**: Hand-splitting diffs is time-consuming and error-prone
-
-## Solution
-
-Path-based navigation system with auto-loading MCP tools:
-
-1. **load_diff** - Parse diff file with custom settings (optional)
-2. **list_chunks** - Get chunk summaries with file mappings (auto-loads)
-3. **get_chunk** - Retrieve specific chunk content (auto-loads)
-4. **find_chunks_for_files** - Locate chunks by file patterns (auto-loads)
-
-## Project Structure
+## Architecture
 
 ```
-diffchunk/
-├── src/                    # MCP server implementation
-│   ├── main.py            # CLI entry point
-│   ├── server.py          # MCP server
-│   ├── tools.py           # MCP tools (load_diff, get_chunk, etc)
-│   ├── models.py          # Data models (DiffSession, DiffChunk)
-│   ├── parser.py          # Diff parsing logic
-│   └── chunker.py         # Chunking engine
-├── tests/                 # Test suites with real diff files
-├── docs/
-│   ├── design.md          # This design document
-│   └── maintenance.md     # Publishing and CI/CD guide
-└── README.md              # Installation and usage
+Diff File → Canonicalize Path → Hash Content → Cache Check → Parse → Filter → Chunk → Index → Tools
 ```
 
-**Key files**: `README.md` for users, `docs/maintenance.md` for maintainers, this design doc (docs/design.md) for implementation details.
+## Tools
 
-## API
-
-### Tools
-
-#### load_diff (Optional)
+### load_diff (Optional)
 
 ```python
 def load_diff(
@@ -55,200 +20,134 @@ def load_diff(
     max_chunk_lines: int = 1000,
     skip_trivial: bool = True,
     skip_generated: bool = True,
-    include_patterns: str = None,
-    exclude_patterns: str = None
-) -> dict
+    include_patterns: Optional[str] = None,
+    exclude_patterns: Optional[str] = None,
+) -> Dict[str, Any]
 ```
 
-**Parameters:**
-- `absolute_file_path`: Absolute path to diff file
-- `max_chunk_lines`: Maximum lines per chunk (default: 1000)
-- `skip_trivial`: Skip whitespace-only changes (default: true)
-- `skip_generated`: Skip build artifacts, lock files (default: true)
-- `include_patterns`: Comma-separated file patterns to include
-- `exclude_patterns`: Comma-separated file patterns to exclude
+**Returns:** `{"chunks": int, "files": int, "total_lines": int, "file_path": str}`
 
-Returns: Overview with total chunks, file count, basic statistics
-
-#### list_chunks (Auto-Loading)
+### list_chunks (Auto-loading)
 
 ```python
-def list_chunks(absolute_file_path: str) -> list
+def list_chunks(absolute_file_path: str) -> List[Dict[str, Any]]
 ```
 
-**Parameters:**
-- `absolute_file_path`: Absolute path to diff file
+**Returns:** Array of chunk metadata with files, line counts, summaries
 
-Returns: Array of chunk info with file names, line counts, summaries
-
-#### get_chunk (Auto-Loading)
+### get_chunk (Auto-loading)
 
 ```python
-def get_chunk(absolute_file_path: str, chunk_number: int, include_context: bool = True) -> str
+def get_chunk(
+    absolute_file_path: str, 
+    chunk_number: int, 
+    include_context: bool = True
+) -> str
 ```
 
-**Parameters:**
-- `absolute_file_path`: Absolute path to diff file
-- `chunk_number`: Chunk number to retrieve (1-indexed)
-- `include_context`: Include chunk header with metadata
+**Returns:** Formatted diff chunk content
 
-Returns: Formatted diff chunk content
-
-#### find_chunks_for_files (Auto-Loading)
+### find_chunks_for_files (Auto-loading)
 
 ```python
-def find_chunks_for_files(absolute_file_path: str, pattern: str) -> list
+def find_chunks_for_files(absolute_file_path: str, pattern: str) -> List[int]
 ```
 
-**Parameters:**
-- `absolute_file_path`: Absolute path to diff file
-- `pattern`: Glob pattern to match file paths
+**Returns:** Array of chunk numbers matching glob pattern
 
-Returns: Array of chunk numbers containing files matching pattern
-
-### Resources
-
-- `diffchunk://current` - Overview of loaded diff
-
-## Implementation
-
-### Architecture
-
-```
-Diff File → Canonicalize Path → Hash Content → Cache Check → Parse → Filter → Chunk → Index → Navigation API
-```
-
-### Path-Based State Management
-
-- **File Key**: `canonical_path + content_hash` for unique identification
-- **Auto-Loading**: Tools automatically load diff files as needed
-- **Change Detection**: Modified files trigger automatic reload via content hashing
-- **Multi-File Support**: Each diff file maintains separate session state
-
-### Chunking Strategy
-
-- Prefer file boundaries to maintain context
-- Respect max_chunk_lines limit (default 1000)
-- Track file-to-chunk mapping for navigation
-- Preserve diff headers and context lines
-
-### Storage
-
-- **Path-based sessions**: `Dict[file_key, DiffSession]`
-- **Content hashing**: SHA-256 for file change detection
-- **Cross-platform paths**: `os.path.realpath()` for canonical paths
-- **In-memory chunk index**: File pattern matching via glob patterns
-
-### Core Classes
+### get_current_overview
 
 ```python
-class DiffChunkTools:
-    sessions: Dict[str, DiffSession]  # file_key -> session
-    
-    def _get_file_key(self, absolute_file_path: str) -> str:
-        """Generate unique key from canonical path + content hash."""
-        
-    def _ensure_loaded(self, absolute_file_path: str, **kwargs) -> str:
-        """Auto-load diff if not cached, return file key."""
+def get_current_overview() -> Dict[str, Any]
+```
 
-class DiffSession:
-    file_path: str
-    chunks: List[DiffChunk]
-    file_to_chunks: Dict[str, List[int]]
-    stats: DiffStats
+**Returns:** Overview of all loaded diff sessions
 
+## Data Models
+
+```python
+@dataclass
+class DiffChunk:
+    number: int
+    content: str
+    files: List[str]
+    line_count: int
+    parent_file: str | None = None        # For large file sub-chunks
+    sub_chunk_index: int | None = None    # Sub-chunk position
+
+@dataclass
 class ChunkInfo:
     chunk_number: int
     files: List[str]
     line_count: int
     summary: str
+    parent_file: str | None = None
+    sub_chunk_index: int | None = None
+
+@dataclass 
+class DiffSession:
+    file_path: str
+    chunks: List[DiffChunk]
+    file_to_chunks: Dict[str, List[int]]  # file_path -> chunk_numbers
+    stats: DiffStats
+
+@dataclass
+class DiffStats:
+    total_files: int
+    total_lines: int
+    chunks_count: int
 ```
 
-## Usage Examples
+## Implementation Details
 
-### Auto-Loading Navigation
+### State Management
 
-```python
-# Any tool can be called first - they auto-load with defaults
-list_chunks("/tmp/feature.diff")  # Auto-loads and shows all chunks
-get_chunk("/tmp/feature.diff", 1)  # Auto-loads and gets first chunk
+- **File Key:** `canonical_path + "#" + content_hash[:16]`
+- **Sessions:** `Dict[file_key, DiffSession]`
+- **Auto-loading:** Tools load diff files on first access
+- **Change Detection:** SHA-256 content hashing triggers reload
 
-# load_diff only needed for custom settings
-load_diff("/tmp/feature.diff", max_chunk_lines=2000)
+### Chunking Strategy
+
+1. **Target Size:** 80% of `max_chunk_lines` (default 1000) for buffer
+2. **Boundaries:** Prefer file boundaries, split at hunk headers if needed
+3. **Large Files:** Split at `@@ ... @@` hunk boundaries
+4. **Sub-chunks:** Track parent file and index for oversized files
+5. **Context:** Preserve diff headers in each chunk
+
+### Path Handling
+
+- **Required:** Absolute paths only
+- **Canonicalization:** `os.path.realpath()` for unique keys
+- **Cross-platform:** Windows and Unix path support
+- **Home expansion:** `~` supported
+
+### Error Handling
+
+- File existence validation
+- Diff format verification
+- Graceful handling of malformed sections
+- Clear error messages for invalid patterns
+
+## Project Structure
+
+```
+src/
+├── main.py           # CLI entry point
+├── server.py         # MCP server (DiffChunkServer)
+├── tools.py          # MCP tools (DiffChunkTools)
+├── models.py         # Data models
+├── parser.py         # Diff parsing (DiffParser)
+└── chunker.py        # Chunking logic (DiffChunker)
 ```
 
-### Pattern-Based Navigation
+## Resources
 
-```python
-# All tools auto-load if needed
-find_chunks_for_files("/tmp/feature.diff", "*.py")        # Python files → [1, 3, 5]
-find_chunks_for_files("/tmp/feature.diff", "*test*")      # Test files → [2, 6]
-find_chunks_for_files("/tmp/feature.diff", "src/*")       # Source directory → [1, 3, 4]
-```
-
-### Multi-File Usage
-
-```python
-# Each file maintains separate state
-list_chunks("/tmp/feature-auth.diff")     # Auth feature changes
-list_chunks("/tmp/feature-ui.diff")       # UI feature changes
-get_chunk("/tmp/feature-auth.diff", 1)    # First chunk of auth changes
-```
-
-## Configuration
-
-### Required Parameters
-
-- `absolute_file_path`: **Required**. Absolute path to diff file for all tools.
-
-### Auto-Loading Defaults
-
-When tools auto-load diffs, they use these defaults:
-- `max_chunk_lines`: 1000 (LLM context optimized)
-- `skip_trivial`: true (skip whitespace-only changes)
-- `skip_generated`: true (skip lock files, build artifacts)
-- `include_patterns`: none (include all files)
-- `exclude_patterns`: none (exclude no files)
-
-### Explicit Control via load_diff
-
-Use `load_diff` for custom settings:
-- `max_chunk_lines`: Custom chunk size
-- `skip_trivial`: Control whitespace handling
-- `skip_generated`: Control generated file handling
-- `include_patterns`: Comma-separated glob patterns to include
-- `exclude_patterns`: Comma-separated glob patterns to exclude
-
-### Path Resolution
-
-The server handles paths as follows:
-1. All paths must be absolute (no relative path support)
-2. Paths are canonicalized using `os.path.realpath()`
-3. Cross-platform compatibility (Windows/Unix)
-4. User home directory expansion (`~`) is supported
-5. Content hashing detects file changes for cache invalidation
+- `diffchunk://current` - Overview of loaded diffs via MCP resource protocol
 
 ## Performance
 
-- Target: <1 second navigation for 100k+ line diffs
-- Memory efficient: stream processing, lazy chunk loading
-- File-based input eliminates parameter size limits
-
-## Error Handling
-
-- Validate file existence and readability
-- Verify diff format before processing
-- Graceful degradation for malformed sections
-- Clear error messages for invalid patterns
-
-## Benefits
-
-- **Auto-Loading**: Seamless UX with no session management complexity
-- **Multi-File Support**: Each diff file maintains separate state
-- **Change Detection**: Automatic reload when files are modified
-- **Direct Navigation**: Jump to relevant changes by file pattern
-- **Context Preservation**: Maintain file relationships and diff metadata
-- **Scale**: Handle enterprise-size diffs efficiently
-- **Integration**: Works with existing git/diff workflows
-- **Language Agnostic**: No assumptions about code structure or language
-- **Cross-Platform**: Robust path handling for Windows/Unix systems
+- Target: <1 second for 100k+ line diffs
+- Memory efficient streaming
+- Lazy chunk loading
+- File-based input (no parameter size limits)

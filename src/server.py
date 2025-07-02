@@ -47,7 +47,7 @@ class DiffChunkServer:
             return [
                 Tool(
                     name="load_diff",
-                    description="Load and parse a diff file into navigable chunks with custom settings",
+                    description="Parse and load a diff file with custom chunking settings. Use this tool ONLY when you need non-default settings (custom chunk sizes, filtering patterns). Otherwise, use list_chunks, get_chunk, or find_chunks_for_files which auto-load with optimal defaults. CRITICAL: You must use an absolute directory path - relative paths will fail. The diff file will be too large for direct reading, so you MUST use diffchunk tools for navigation. When using tracking documents for analysis, remember to clean up tracking state before presenting final results.",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -84,7 +84,7 @@ class DiffChunkServer:
                 ),
                 Tool(
                     name="list_chunks",
-                    description="List all chunks with file information and summaries (auto-loads if needed)",
+                    description="Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work.",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -98,7 +98,7 @@ class DiffChunkServer:
                 ),
                 Tool(
                     name="get_chunk",
-                    description="Get the content of a specific chunk (auto-loads if needed)",
+                    description="Retrieve the actual content of a specific numbered chunk from a diff file. Auto-loads the diff file if not already loaded. Use this for systematic analysis of changes chunk-by-chunk, or to examine specific chunks identified via list_chunks or find_chunks_for_files. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT read diff files directly - they exceed LLM context windows. This tool provides manageable portions of large diffs. Track your progress through chunks when doing comprehensive analysis and clean up tracking documents before final results.",
                     inputSchema={
                         "type": "object",
                         "properties": {
@@ -121,7 +121,7 @@ class DiffChunkServer:
                 ),
                 Tool(
                     name="find_chunks_for_files",
-                    description="Find chunks containing files matching a pattern (auto-loads if needed)",
+                    description="Locate chunks containing files that match a specific glob pattern. Auto-loads the diff file if not already loaded. Essential for targeted analysis when you need to focus on specific file types, directories, or naming patterns (e.g., '*.py' for Python files, '*test*' for test files, 'src/*' for source directory). Returns chunk numbers which you then examine using get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt direct file reading. Use this for efficient navigation to relevant changes instead of processing entire large diffs sequentially.",
                     inputSchema={
                         "type": "object",
                         "properties": {
