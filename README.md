@@ -25,6 +25,8 @@ MCP server with 4 navigation tools:
 
 ## Setup
 
+**Prerequisite:** Install [uv](https://docs.astral.sh/uv/getting-started/installation/) (an extremely fast Python package manager) which provides the `uvx` command.
+
 Add to your MCP client configuration:
 
 ```json
