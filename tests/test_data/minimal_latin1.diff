@@ -1,0 +1,8 @@
+diff --git a/filé.txt b/filé.txt
+index 1234567..abcdefg 100644
+--- a/filé.txt
++++ b/filé.txt
+@@ -1,2 +1,2 @@
+ line 1
+-old liné
++new liné
