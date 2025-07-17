@@ -75,3 +75,6 @@ Thumbs.db
 *.patch
 !tests/test_data/*.diff
 test_output/
+
+# example repos folders for diffs
+repos/
