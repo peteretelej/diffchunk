@@ -20,7 +20,7 @@ MCP server with 4 navigation tools:
 
 - `load_diff` - Parse diff file with custom settings (optional)
 - `list_chunks` - Show chunk overview with file mappings (auto-loads)
-- `get_chunk` - Retrieve specific chunk content (auto-loads)  
+- `get_chunk` - Retrieve specific chunk content (auto-loads)
 - `find_chunks_for_files` - Locate chunks by file patterns (auto-loads)
 
 ## Setup
@@ -42,51 +42,72 @@ Add to your MCP client configuration:
 
 ## Usage
 
-### Basic Workflow
+Your AI assistant can now handle massive changesets that previously caused failures in Cline, Roocode, Cursor, and other tools.
 
-```bash
-# Generate diff file
-git diff main..feature-branch > /tmp/changes.diff
+### Using with AI Assistant
+
+Once configured, your AI assistant can analyze large commits, branches, or diffs using diffchunk.
+
+Here are some example use cases:
+
+**Branch comparisons:**
+
+- _"Review all changes in develop not in the main branch for any bugs"_
+- _"Tell me about all the changes I have yet to merge"_
+- _"What new features were added to the staging branch?"_
+- _"Summarize all changes to this repo in the last 2 weeks"_
+
+**Code review:**
+
+- _"Use diffchunk to check my feature branch for security vulnerabilities"_
+- _"Use diffchunk to find any breaking changes before I merge to production"_
+- _"Use diffchunk to review this large refactor for potential issues"_
+
+**Change analysis:**
+
+- _"Use diffchunk to show me all database migrations that need to be run"_
+- _"Use diffchunk to find what API changes might affect our mobile app"_
+- _"Use diffchunk to analyze all new dependencies added recently"_
+
+**Direct file analysis:**
+
+- _"Use diffchunk to analyze the diff at /tmp/changes.diff and find any bugs"_
+- _"Create a diff of my uncommitted changes and review it"_
+- _"Compare my local branch with origin and highlight conflicts"_
+
+### Tip: AI Assistant Rules
+
+Add to your AI assistant's custom instructions for automatic usage:
+
+```
+When reviewing large changesets or git commits, use diffchunk to handle large diff files.
+Create temporary diff files and tracking files as needed and clean up after analysis.
 ```
 
-```
-# LLM analyzes using diffchunk tools
-Use diffchunk to analyze the diff at /tmp/changes.diff and find any bugs.
-```
+## How It Works
 
-### Tracking Analysis Progress
+When you ask your AI assistant to analyze changes, it uses diffchunk's tools strategically:
 
-For large diffs requiring systematic analysis, LLMs can maintain tracking documents to resume work:
+1. **Creates the diff file** (e.g., `git diff main..develop > /tmp/changes.diff`) based on your question
+2. **Uses `list_chunks`** to get an overview of the diff structure and total scope
+3. **Uses `find_chunks_for_files`** to locate relevant sections when you ask about specific file types
+4. **Uses `get_chunk`** to examine specific sections without loading the entire diff into context
+5. **Tracks progress systematically** through large changesets, analyzing chunk by chunk
+6. **Cleans up temporary files** after completing the analysis
 
-```
-# Initial analysis with tracking
-Use diffchunk to analyze /tmp/large-feature.diff. Create a tracking document 
-to monitor progress through all chunks, then provide final summary.
-
-# LLM maintains internal tracking:
-# - Chunk 1/15: API endpoints - ANALYZED
-# - Chunk 2/15: Database models - ANALYZED  
-# - Chunk 3/15: Tests - IN PROGRESS
-# - Chunks 4-15: PENDING
-
-# Clean up tracking before final results
-```
-
-The tracking document concept allows LLMs to:
-- Resume analysis where they left off
-- Ensure comprehensive coverage of large diffs
-- Maintain context across multiple chunks
-- Provide complete analysis results
+This lets your AI assistant handle massive diffs that would normally crash other tools, while providing thorough analysis without losing context.
 
 ### Tool Usage Patterns
 
 **Overview first:**
+
 ```python
 list_chunks("/tmp/changes.diff")
 # → 5 chunks across 12 files, 3,847 total lines
 ```
 
 **Target specific files:**
+
 ```python
 find_chunks_for_files("/tmp/changes.diff", "*.py")
 # → [1, 3, 5] - Python file chunks
@@ -96,6 +117,7 @@ get_chunk("/tmp/changes.diff", 1)
 ```
 
 **Systematic analysis:**
+
 ```python
 # Process each chunk in sequence
 get_chunk("/tmp/changes.diff", 1)
@@ -108,12 +130,13 @@ get_chunk("/tmp/changes.diff", 2)
 ### Path Requirements
 
 - **Absolute paths only**: `/home/user/project/changes.diff`
-- **Cross-platform**: Windows (`C:\path`) and Unix (`/path`) 
+- **Cross-platform**: Windows (`C:\path`) and Unix (`/path`)
 - **Home expansion**: `~/project/changes.diff`
 
 ### Auto-Loading Defaults
 
 Tools auto-load with optimized settings:
+
 - `max_chunk_lines`: 1000
 - `skip_trivial`: true (whitespace-only)
 - `skip_generated`: true (lock files, build artifacts)
