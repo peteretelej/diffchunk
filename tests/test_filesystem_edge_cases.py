@@ -38,7 +38,7 @@ class TestFileSystemEdgeCases:
     def test_load_diff_directory_instead_of_file(self, tools):
         """Test loading directory instead of file."""
         with pytest.raises(ValueError, match="not a file"):
-            tools.load_diff("/tmp")
+            tools.load_diff(tempfile.gettempdir())
 
     def test_load_diff_empty_file_path(self, tools):
         """Test loading with empty file path."""

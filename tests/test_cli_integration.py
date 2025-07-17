@@ -1,5 +1,7 @@
 """CLI integration tests for main.py entry point."""
 
+import platform
+import signal
 import subprocess
 import sys
 import time
@@ -100,8 +102,11 @@ class TestCLIIntegration:
             # Give it a moment to start
             time.sleep(1)
 
-            # Send interrupt signal
-            process.send_signal(subprocess.signal.SIGINT)
+            # Send interrupt signal (Windows doesn't support SIGINT)
+            if platform.system() == "Windows":
+                process.terminate()
+            else:
+                process.send_signal(signal.SIGINT)
 
             # Wait for graceful shutdown
             stdout, stderr = process.communicate(timeout=3)

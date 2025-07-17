@@ -1,5 +1,7 @@
 """Integration tests using real diff files from test_data."""
 
+import tempfile
+
 import pytest
 from pathlib import Path
 
@@ -200,7 +202,7 @@ class TestIntegrationWithRealData:
 
         # Directory instead of file
         with pytest.raises(ValueError, match="not a file"):
-            tools.load_diff("/tmp")
+            tools.load_diff(tempfile.gettempdir())
 
     def test_chunk_size_consistency(self, tools, test_data_dir):
         """Test that chunk sizes are respected reasonably."""

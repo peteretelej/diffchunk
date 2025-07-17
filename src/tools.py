@@ -64,11 +64,13 @@ class DiffChunkTools:
         resolved_file_path = os.path.realpath(os.path.expanduser(absolute_file_path))
 
         # Validate file exists and is readable
+        if os.path.exists(resolved_file_path) and not os.path.isfile(
+            resolved_file_path
+        ):
+            raise ValueError(f"Path is not a file: {resolved_file_path}")
+
         if not os.path.exists(resolved_file_path):
             raise ValueError(f"Diff file not found: {absolute_file_path}")
-
-        if not os.path.isfile(resolved_file_path):
-            raise ValueError(f"Path is not a file: {resolved_file_path}")
 
         if not os.access(resolved_file_path, os.R_OK):
             raise ValueError(f"Cannot read file: {resolved_file_path}")
