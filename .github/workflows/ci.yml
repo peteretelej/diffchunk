@@ -1,17 +1,18 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [ main ]
   push:
+    branches: [ main ]
+  pull_request:
     branches: [ main ]
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        python-version: ["3.10", "3.11", "3.12"]
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11"]
 
     steps:
     - name: Checkout code
@@ -28,16 +29,16 @@ jobs:
         python-version: ${{ matrix.python-version }}
 
     - name: Install dependencies
-      run: uv sync --all-extras --dev
+      run: uv sync --dev
 
     - name: Run tests
       run: uv run pytest -v --tb=short
 
     - name: Run type checking
-      run: uv run mypy src/
+      run: uv run mypy src
 
     - name: Run linting
-      run: uv run ruff check
+      run: uv run ruff check .
 
     - name: Check formatting
       run: uv run ruff format --check
@@ -56,7 +57,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: "3.11"
 
     - name: Install dependencies
       run: uv sync --dev
@@ -89,7 +90,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: "3.10"
+        python-version: "3.11"
 
     - name: Install dependencies
       run: uv sync --dev
