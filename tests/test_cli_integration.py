@@ -1,5 +1,6 @@
 """CLI integration tests for main.py entry point."""
 
+import platform
 import subprocess
 import sys
 import time
@@ -86,6 +87,10 @@ class TestCLIIntegration:
                 process.kill()
                 process.wait()
 
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="Signal handling unreliable on Windows CI",
+    )
     def test_cli_keyboard_interrupt_handling(self):
         """Test CLI handles KeyboardInterrupt gracefully."""
         process = subprocess.Popen(
