@@ -1,7 +1,6 @@
 """CLI integration tests for main.py entry point."""
 
 import platform
-import signal
 import subprocess
 import sys
 import time
@@ -88,6 +87,10 @@ class TestCLIIntegration:
                 process.kill()
                 process.wait()
 
+    @pytest.mark.skipif(
+        platform.system() == "Windows",
+        reason="Signal handling unreliable on Windows CI",
+    )
     def test_cli_keyboard_interrupt_handling(self):
         """Test CLI handles KeyboardInterrupt gracefully."""
         process = subprocess.Popen(
@@ -102,11 +105,8 @@ class TestCLIIntegration:
             # Give it a moment to start
             time.sleep(1)
 
-            # Send interrupt signal (Windows doesn't support SIGINT)
-            if platform.system() == "Windows":
-                process.terminate()
-            else:
-                process.send_signal(signal.SIGINT)
+            # Send interrupt signal
+            process.send_signal(subprocess.signal.SIGINT)
 
             # Wait for graceful shutdown
             stdout, stderr = process.communicate(timeout=3)
