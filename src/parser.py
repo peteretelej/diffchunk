@@ -123,29 +123,32 @@ class DiffParser:
         return True  # Include by default if no patterns specified
 
     def _read_diff_file(self, file_path: str) -> List[str]:
-        """Read diff file with proper encoding handling."""
-        # Try UTF-8 first (most common)
-        encodings = ["utf-8", "utf-8-sig", "cp1252", "latin-1"]
+        """Read diff file with encoding detection."""
+        import chardet
 
-        for encoding in encodings:
-            try:
-                with open(file_path, "r", encoding=encoding) as f:
-                    content = f.read()
+        # Detect encoding from sample
+        with open(file_path, "rb") as f:
+            sample = f.read(8192)
+        result = chardet.detect(sample)
 
-                # Strip BOM if present
-                if content.startswith("\ufeff"):
-                    content = content[1:]
-
-                lines = content.splitlines(keepends=True)
-                return lines
-
-            except (UnicodeDecodeError, IOError):
-                continue
-
-        # If all encodings failed, raise clear error
-        raise ValueError(
-            f"Cannot read diff file {file_path}: unable to decode with any common encoding"
+        # Use detected encoding if confident, otherwise UTF-8
+        encoding = (
+            result.get("encoding") if result.get("confidence", 0) > 0.7 else "utf-8"
         )
+
+        try:
+            with open(file_path, "r", encoding=encoding) as f:
+                content = f.read()
+        except UnicodeDecodeError:
+            # Fallback with error replacement
+            with open(file_path, "r", encoding="utf-8", errors="replace") as f:
+                content = f.read()
+
+        # Strip BOM if present
+        if content.startswith("\ufeff"):
+            content = content[1:]
+
+        return content.splitlines(keepends=True)
 
     def count_lines(self, content: str) -> int:
         """Count meaningful lines in diff content."""
