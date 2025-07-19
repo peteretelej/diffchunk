@@ -33,7 +33,7 @@ class DiffChunker:
             raise ValueError(f"Failed to parse diff: {e}")
 
         if not file_changes:
-            raise ValueError("No valid diff content found")
+            raise ValueError("Diff file parsed successfully but contains no changes")
 
         for files, content in file_changes:
             # Apply filters
