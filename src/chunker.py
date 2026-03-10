@@ -1,7 +1,7 @@
 """Diff chunking functionality."""
 
 import re
-from typing import List, Tuple
+from typing import Dict, List, Tuple
 from .models import DiffChunk, DiffSession
 from .parser import DiffParser
 
@@ -26,6 +26,7 @@ class DiffChunker:
         current_chunk_lines = 0
         current_chunk_content: List[str] = []
         current_chunk_files: List[str] = []
+        current_chunk_file_line_counts: Dict[str, int] = {}
 
         try:
             file_changes = list(self.parser.parse_diff_file(session.file_path))
@@ -50,6 +51,9 @@ class DiffChunker:
 
             content_lines = self.parser.count_lines(content)
 
+            # Use the b/ path (last file) as the canonical name
+            file_name = files[-1]
+
             # Check if this file needs to be split
             if content_lines > self.max_chunk_lines:
                 # Save current chunk if it has content
@@ -60,11 +64,13 @@ class DiffChunker:
                         current_chunk_content,
                         current_chunk_files,
                         current_chunk_lines,
+                        file_line_counts=current_chunk_file_line_counts,
                     )
                     chunk_number += 1
                     current_chunk_content = []
                     current_chunk_files = []
                     current_chunk_lines = 0
+                    current_chunk_file_line_counts = {}
 
                 # Split the large file
                 file_chunks = self._split_large_file(files, content, content_lines)
@@ -73,6 +79,7 @@ class DiffChunker:
                 for sub_index, (sub_files, sub_content, sub_lines) in enumerate(
                     file_chunks, 1
                 ):
+                    sub_file_line_counts = {file_name: sub_lines}
                     self._save_chunk(
                         session,
                         chunk_number,
@@ -81,6 +88,7 @@ class DiffChunker:
                         sub_lines,
                         parent_file=parent_file,
                         sub_chunk_index=sub_index if len(file_chunks) > 1 else None,
+                        file_line_counts=sub_file_line_counts,
                     )
                     chunk_number += 1
             else:
@@ -96,6 +104,7 @@ class DiffChunker:
                         current_chunk_content,
                         current_chunk_files,
                         current_chunk_lines,
+                        file_line_counts=current_chunk_file_line_counts,
                     )
 
                     # Start new chunk
@@ -103,11 +112,13 @@ class DiffChunker:
                     current_chunk_content = []
                     current_chunk_files = []
                     current_chunk_lines = 0
+                    current_chunk_file_line_counts = {}
 
                 # Add to current chunk
                 current_chunk_content.append(content)
                 current_chunk_files.extend(files)
                 current_chunk_lines += content_lines
+                current_chunk_file_line_counts[file_name] = content_lines
 
         # Save final chunk if it has content
         if current_chunk_content:
@@ -117,6 +128,7 @@ class DiffChunker:
                 current_chunk_content,
                 current_chunk_files,
                 current_chunk_lines,
+                file_line_counts=current_chunk_file_line_counts,
             )
 
         # Update session statistics
@@ -136,6 +148,7 @@ class DiffChunker:
         line_count: int,
         parent_file: str | None = None,
         sub_chunk_index: int | None = None,
+        file_line_counts: Dict[str, int] | None = None,
     ) -> None:
         """Save a chunk to the session."""
         # Remove duplicates from files while preserving order
@@ -153,6 +166,7 @@ class DiffChunker:
             line_count=line_count,
             parent_file=parent_file,
             sub_chunk_index=sub_chunk_index,
+            file_line_counts=file_line_counts or {},
         )
 
         session.add_chunk(chunk)

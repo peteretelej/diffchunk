@@ -137,6 +137,24 @@ class DiffChunkServer:
                         "required": ["absolute_file_path", "pattern"],
                     },
                 ),
+                Tool(
+                    name="get_file_diff",
+                    description="Extract the complete diff for a single file from a loaded diff. Returns the diff --git header and all hunks for that file. Use this when you need changes for one specific file without fetching the entire chunk. Auto-loads the diff file if not already loaded. Supports exact file paths or glob patterns that match exactly one file. Use list_chunks with file_details to see per-file line counts and decide whether to use this tool or get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail.",
+                    inputSchema={
+                        "type": "object",
+                        "properties": {
+                            "absolute_file_path": {
+                                "type": "string",
+                                "description": "Absolute path to the diff file",
+                            },
+                            "file_path": {
+                                "type": "string",
+                                "description": "Exact file path or glob pattern matching a single file within the diff (e.g., 'src/main.py', '*.config')",
+                            },
+                        },
+                        "required": ["absolute_file_path", "file_path"],
+                    },
+                ),
             ]
 
         @self.app.call_tool()
@@ -163,6 +181,10 @@ class DiffChunkServer:
                 elif name == "find_chunks_for_files":
                     result = self.tools.find_chunks_for_files(**arguments)
                     return [TextContent(type="text", text=json.dumps(result))]
+
+                elif name == "get_file_diff":
+                    result = self.tools.get_file_diff(**arguments)
+                    return [TextContent(type="text", text=result)]
 
                 else:
                     raise ValueError(f"Unknown tool: {name}")

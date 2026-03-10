@@ -1,8 +1,8 @@
 """Data models for diffchunk MCP server."""
 
 import fnmatch
-from dataclasses import dataclass
-from typing import Dict, List
+from dataclasses import dataclass, field
+from typing import Any, Dict, List
 
 
 @dataclass
@@ -24,6 +24,7 @@ class ChunkInfo:
     summary: str
     parent_file: str | None = None
     sub_chunk_index: int | None = None
+    file_details: List[Dict[str, Any]] = field(default_factory=list)
 
 
 @dataclass
@@ -36,6 +37,7 @@ class DiffChunk:
     line_count: int
     parent_file: str | None = None
     sub_chunk_index: int | None = None
+    file_line_counts: Dict[str, int] = field(default_factory=dict)
 
 
 class DiffSession:
@@ -71,6 +73,11 @@ class DiffSession:
             else:
                 summary = f"{len(chunk.files)} files, {chunk.line_count} lines"
 
+            file_details = [
+                {"path": path, "lines": lines}
+                for path, lines in chunk.file_line_counts.items()
+            ]
+
             return ChunkInfo(
                 chunk_number=chunk.number,
                 files=chunk.files,
@@ -78,6 +85,7 @@ class DiffSession:
                 summary=summary,
                 parent_file=chunk.parent_file,
                 sub_chunk_index=chunk.sub_chunk_index,
+                file_details=file_details,
             )
         return None
 

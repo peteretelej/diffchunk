@@ -1,5 +1,6 @@
 """MCP tools implementation for diffchunk."""
 
+import fnmatch
 import os
 import hashlib
 from typing import Dict, Any, List, Optional
@@ -147,6 +148,7 @@ class DiffChunkTools:
             {
                 "chunk": info.chunk_number,
                 "files": info.files,
+                "file_details": info.file_details,
                 "lines": info.line_count,
                 "summary": info.summary,
                 "parent_file": info.parent_file,
@@ -192,6 +194,50 @@ class DiffChunkTools:
         matching_chunks = session.find_chunks_for_files(pattern.strip())
 
         return matching_chunks
+
+    def get_file_diff(self, absolute_file_path: str, file_path: str) -> str:
+        """Extract the diff for a single file from a loaded diff."""
+        file_key = self._ensure_loaded(absolute_file_path)
+        session = self.sessions[file_key]
+
+        if not isinstance(file_path, str) or not file_path.strip():
+            raise ValueError("file_path must be a non-empty string")
+
+        file_path = file_path.strip()
+        all_files = list(session.file_to_chunks.keys())
+
+        # Try exact match first, then glob matching
+        matches = [f for f in all_files if f == file_path]
+        if not matches:
+            matches = [f for f in all_files if fnmatch.fnmatch(f, file_path)]
+
+        if not matches:
+            available = ", ".join(sorted(all_files)[:20])
+            suffix = "..." if len(all_files) > 20 else ""
+            raise ValueError(
+                f"No file matching '{file_path}' found in diff. "
+                f"Available files: {available}{suffix}"
+            )
+
+        if len(matches) > 1:
+            matched_list = ", ".join(sorted(matches))
+            raise ValueError(
+                f"Pattern '{file_path}' matches multiple files: {matched_list}. "
+                f"Use a more specific path."
+            )
+
+        target_file = matches[0]
+
+        # Re-parse the diff file and extract only the target file's content
+        parts = []
+        for files, content in self.chunker.parser.parse_diff_file(session.file_path):
+            if target_file in files:
+                parts.append(content)
+
+        if not parts:
+            raise ValueError(f"File '{target_file}' not found in diff content")
+
+        return "\n\n".join(parts)
 
     def get_current_overview(self) -> Dict[str, Any]:
         """Get overview of all loaded diffs."""
