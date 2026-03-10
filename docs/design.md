@@ -77,10 +77,10 @@ def get_file_diff(absolute_file_path: str, file_path: str) -> str
 ```
 
 **Parameters:**
-- `file_path` – Exact path or glob pattern that matches exactly one file in the diff
+- `file_path` – Exact path or glob pattern that matches exactly one file in the diff. Must be a non-empty, non-whitespace string.
 
 **Returns:** Formatted string with the `diff --git` header and all hunks for the specified file.
-Raises `ValueError` if the pattern matches zero or more than one file.
+Raises `ValueError` if `file_path` is empty or whitespace-only, or if the pattern matches zero or more than one file.
 
 ### get_current_overview
 
