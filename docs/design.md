@@ -33,7 +33,22 @@ def load_diff(
 def list_chunks(absolute_file_path: str) -> List[Dict[str, Any]]
 ```
 
-**Returns:** Array of chunk metadata with files, line counts, summaries
+**Returns:** Array of chunk metadata with files, line counts, summaries, and `file_details` (per-file line counts)
+
+```json
+[
+  {
+    "chunk": 1,
+    "files": ["src/main.py", "src/utils.py"],
+    "file_details": [
+      {"path": "src/main.py", "lines": 120},
+      {"path": "src/utils.py", "lines": 45}
+    ],
+    "lines": 165,
+    "summary": "2 files, 165 lines"
+  }
+]
+```
 
 ### get_chunk (Auto-loading)
 
@@ -55,6 +70,18 @@ def find_chunks_for_files(absolute_file_path: str, pattern: str) -> List[int]
 
 **Returns:** Array of chunk numbers matching glob pattern
 
+### get_file_diff (Auto-loading)
+
+```python
+def get_file_diff(absolute_file_path: str, file_path: str) -> str
+```
+
+**Parameters:**
+- `file_path` – Exact path or glob pattern that matches exactly one file in the diff. Must be a non-empty, non-whitespace string.
+
+**Returns:** Formatted string with the `diff --git` header and all hunks for the specified file.
+Raises `ValueError` if `file_path` is empty or whitespace-only, or if the pattern matches zero or more than one file.
+
 ### get_current_overview
 
 ```python
@@ -74,6 +101,7 @@ class DiffChunk:
     line_count: int
     parent_file: str | None = None        # For large file sub-chunks
     sub_chunk_index: int | None = None    # Sub-chunk position
+    file_line_counts: Dict[str, int] = field(default_factory=dict)  # Per-file line counts
 
 @dataclass
 class ChunkInfo:
@@ -83,6 +111,7 @@ class ChunkInfo:
     summary: str
     parent_file: str | None = None
     sub_chunk_index: int | None = None
+    file_details: List[Dict[str, Any]] = field(default_factory=list)  # [{"path": str, "lines": int}]
 
 @dataclass 
 class DiffSession:
