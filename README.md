@@ -16,12 +16,13 @@ Large diffs exceed LLM context limits and waste tokens on irrelevant changes. A 
 
 ## Solution
 
-MCP server with 4 navigation tools:
+MCP server with 5 navigation tools:
 
 - `load_diff` - Parse diff file with custom settings (optional)
-- `list_chunks` - Show chunk overview with file mappings (auto-loads)
+- `list_chunks` - Show chunk overview with file mappings and per-file line counts (auto-loads)
 - `get_chunk` - Retrieve specific chunk content (auto-loads)
 - `find_chunks_for_files` - Locate chunks by file patterns (auto-loads)
+- `get_file_diff` - Extract the complete diff for a single file (auto-loads)
 
 ## Setup
 
@@ -89,11 +90,12 @@ Create temporary diff files and tracking files as needed and clean up after anal
 When you ask your AI assistant to analyze changes, it uses diffchunk's tools strategically:
 
 1. **Creates the diff file** (e.g., `git diff main..develop > /tmp/changes.diff`) based on your question
-2. **Uses `list_chunks`** to get an overview of the diff structure and total scope
+2. **Uses `list_chunks`** to get an overview of the diff structure and total scope, including per-file line counts via `file_details`
 3. **Uses `find_chunks_for_files`** to locate relevant sections when you ask about specific file types
-4. **Uses `get_chunk`** to examine specific sections without loading the entire diff into context
-5. **Tracks progress systematically** through large changesets, analyzing chunk by chunk
-6. **Cleans up temporary files** after completing the analysis
+4. **Uses `get_file_diff`** to fetch the complete diff for one specific file without loading an entire chunk
+5. **Uses `get_chunk`** to examine specific sections without loading the entire diff into context
+6. **Tracks progress systematically** through large changesets, analyzing chunk by chunk
+7. **Cleans up temporary files** after completing the analysis
 
 This lets your AI assistant handle massive diffs that would normally crash other tools, while providing thorough analysis without losing context.
 
@@ -104,6 +106,7 @@ This lets your AI assistant handle massive diffs that would normally crash other
 ```python
 list_chunks("/tmp/changes.diff")
 # → 5 chunks across 12 files, 3,847 total lines
+# Each chunk includes file_details with per-file line counts
 ```
 
 **Target specific files:**
@@ -114,6 +117,17 @@ find_chunks_for_files("/tmp/changes.diff", "*.py")
 
 get_chunk("/tmp/changes.diff", 1)
 # → Content of first Python chunk
+```
+
+**Single-file diff:**
+
+```python
+get_file_diff("/tmp/changes.diff", "src/main.py")
+# → Complete diff for src/main.py (header + all hunks)
+
+# Glob patterns work when they match exactly one file
+get_file_diff("/tmp/changes.diff", "*.config")
+# → Complete diff for the single matching config file
 ```
 
 **Systematic analysis:**
