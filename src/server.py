@@ -207,7 +207,7 @@ class DiffChunkServer:
                 write_stream,
                 InitializationOptions(
                     server_name="diffchunk",
-                    server_version="0.1.3",
+                    server_version="0.1.8",
                     capabilities=self.app.get_capabilities(
                         notification_options=NotificationOptions(),
                         experimental_capabilities={},

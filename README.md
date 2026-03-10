@@ -170,7 +170,7 @@ load_diff(
 ## Documentation
 
 - [Design](docs/design.md) - Architecture and implementation details
-- [Contributing](docs/CONTRIBUTING.md) - Development setup and workflows
+- [Contributing](CONTRIBUTING.md) - Contributing guidelines and development setup
 
 ## License
 
