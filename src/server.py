@@ -6,6 +6,7 @@ import sys
 from typing import Annotated, Optional
 
 from mcp.server.fastmcp import FastMCP
+from mcp.types import ToolAnnotations
 from pydantic import Field
 
 from .tools import DiffChunkTools
@@ -27,7 +28,7 @@ def current_overview() -> str:
     return json.dumps(tools.get_current_overview(), indent=2)
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, structured_output=False)
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True), structured_output=False)
 def load_diff(
     absolute_file_path: Annotated[
         str, Field(description="Absolute path to the diff file to load")
@@ -63,7 +64,7 @@ def load_diff(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, structured_output=False)
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True), structured_output=False)
 def list_chunks(
     absolute_file_path: Annotated[
         str, Field(description="Absolute path to the diff file")
@@ -75,7 +76,7 @@ def list_chunks(
     return json.dumps(result, indent=2)
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, structured_output=False)
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True), structured_output=False)
 def get_chunk(
     absolute_file_path: Annotated[
         str, Field(description="Absolute path to the diff file")
@@ -97,7 +98,7 @@ def get_chunk(
     return result
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, structured_output=False)
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True), structured_output=False)
 def find_chunks_for_files(
     absolute_file_path: Annotated[
         str, Field(description="Absolute path to the diff file")
@@ -118,7 +119,7 @@ def find_chunks_for_files(
     return json.dumps(result)
 
 
-@mcp.tool(annotations={"readOnlyHint": True}, structured_output=False)
+@mcp.tool(annotations=ToolAnnotations(readOnlyHint=True), structured_output=False)
 def get_file_diff(
     absolute_file_path: Annotated[
         str, Field(description="Absolute path to the diff file")
