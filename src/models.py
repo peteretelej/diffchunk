@@ -103,7 +103,7 @@ class DiffSession:
         matching_chunks = set()
 
         for file_path, chunk_numbers in self.file_to_chunks.items():
-            if fnmatch.fnmatch(file_path, pattern):
+            if fnmatch.fnmatch(file_path.lower(), pattern.lower()):
                 matching_chunks.update(chunk_numbers)
 
         return sorted(matching_chunks)

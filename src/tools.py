@@ -214,10 +214,10 @@ class DiffChunkTools:
         file_path = file_path.strip()
         all_files = list(session.file_to_chunks.keys())
 
-        # Try exact match first, then glob matching
-        matches = [f for f in all_files if f == file_path]
+        # Try exact match first, then glob matching (case-insensitive)
+        matches = [f for f in all_files if f.lower() == file_path.lower()]
         if not matches:
-            matches = [f for f in all_files if fnmatch.fnmatch(f, file_path)]
+            matches = [f for f in all_files if fnmatch.fnmatch(f.lower(), file_path.lower())]
 
         if not matches:
             available = ", ".join(sorted(all_files)[:20])
