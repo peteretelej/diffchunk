@@ -75,7 +75,9 @@ class DiffChunker:
                     current_chunk_file_line_counts = {}
 
                 # Split the large file
-                file_chunks = self._split_large_file(files, content, content_lines, max_chunk_lines)
+                file_chunks = self._split_large_file(
+                    files, content, content_lines, max_chunk_lines
+                )
                 parent_file = files[0] if len(files) == 1 else f"{len(files)} files"
 
                 for sub_index, (sub_files, sub_content, sub_lines) in enumerate(
@@ -238,10 +240,7 @@ class DiffChunker:
                 current_chunk_line_count += 1
 
             # STRICT enforcement: split immediately if we exceed limit
-            if (
-                current_chunk_line_count + len(file_header_lines)
-                >= max_chunk_lines
-            ):
+            if current_chunk_line_count + len(file_header_lines) >= max_chunk_lines:
                 # Find the last hunk header in current chunk to split there
                 last_hunk_idx = None
                 for j in range(len(current_chunk_lines) - 1, -1, -1):

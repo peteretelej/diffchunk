@@ -75,7 +75,9 @@ class DiffChunkTools:
             raise ValueError(f"Path is not a file: {resolved_file_path}")
 
         if not os.path.exists(resolved_file_path):
-            raise ValueError(f"Diff file not found: {absolute_file_path}. Verify the file exists and the path is absolute.")
+            raise ValueError(
+                f"Diff file not found: {absolute_file_path}. Verify the file exists and the path is absolute."
+            )
 
         if not os.access(resolved_file_path, os.R_OK):
             raise ValueError(f"Cannot read file: {resolved_file_path}")
@@ -197,7 +199,9 @@ class DiffChunkTools:
         session = self.sessions[file_key]
 
         if not isinstance(pattern, str) or not pattern.strip():
-            raise ValueError("Pattern must be a non-empty string. Use '*' to match all files, '*.py' for Python files, or 'src/*' for a directory.")
+            raise ValueError(
+                "Pattern must be a non-empty string. Use '*' to match all files, '*.py' for Python files, or 'src/*' for a directory."
+            )
 
         matching_chunks = session.find_chunks_for_files(pattern.strip())
 
@@ -217,7 +221,9 @@ class DiffChunkTools:
         # Try exact match first, then glob matching (case-insensitive)
         matches = [f for f in all_files if f.lower() == file_path.lower()]
         if not matches:
-            matches = [f for f in all_files if fnmatch.fnmatch(f.lower(), file_path.lower())]
+            matches = [
+                f for f in all_files if fnmatch.fnmatch(f.lower(), file_path.lower())
+            ]
 
         if not matches:
             available = ", ".join(sorted(all_files)[:20])

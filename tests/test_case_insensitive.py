@@ -22,7 +22,9 @@ def react_diff_file():
 
 @pytest.fixture
 def go_diff_file():
-    diff_file = Path(__file__).parent / "test_data" / "go_version_upgrade_1.22_to_1.23.diff"
+    diff_file = (
+        Path(__file__).parent / "test_data" / "go_version_upgrade_1.22_to_1.23.diff"
+    )
     if not diff_file.exists():
         pytest.skip("Go test diff not found")
     return str(diff_file)
