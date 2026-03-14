@@ -1,12 +1,21 @@
 """MCP server implementation for diffchunk."""
 
 import json
+import logging
+import sys
 from typing import Annotated, Optional
 
 from mcp.server.fastmcp import FastMCP
 from pydantic import Field
 
 from .tools import DiffChunkTools
+
+logging.basicConfig(
+    stream=sys.stderr,
+    level=logging.INFO,
+    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
+)
+logger = logging.getLogger("diffchunk")
 
 mcp = FastMCP("diffchunk")
 tools = DiffChunkTools()
@@ -42,6 +51,7 @@ def load_diff(
     ] = None,
 ) -> str:
     """Parse and load a diff file with custom chunking settings. Use this tool ONLY when you need non-default settings (custom chunk sizes, filtering patterns). Otherwise, use list_chunks, get_chunk, or find_chunks_for_files which auto-load with optimal defaults. CRITICAL: You must use an absolute directory path - relative paths will fail. The diff file will be too large for direct reading, so you MUST use diffchunk tools for navigation. When using tracking documents for analysis, remember to clean up tracking state before presenting final results."""
+    logger.info("load_diff: %s", absolute_file_path)
     result = tools.load_diff(
         absolute_file_path=absolute_file_path,
         max_chunk_lines=max_chunk_lines,
@@ -60,6 +70,7 @@ def list_chunks(
     ],
 ) -> str:
     """Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work."""
+    logger.info("list_chunks: %s", absolute_file_path)
     result = tools.list_chunks(absolute_file_path=absolute_file_path)
     return json.dumps(result, indent=2)
 
@@ -77,6 +88,7 @@ def get_chunk(
     ] = True,
 ) -> str:
     """Retrieve the actual content of a specific numbered chunk from a diff file. Auto-loads the diff file if not already loaded. Use this for systematic analysis of changes chunk-by-chunk, or to examine specific chunks identified via list_chunks or find_chunks_for_files. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT read diff files directly - they exceed LLM context windows. This tool provides manageable portions of large diffs. Track your progress through chunks when doing comprehensive analysis and clean up tracking documents before final results."""
+    logger.info("get_chunk: %s chunk=%d", absolute_file_path, chunk_number)
     result = tools.get_chunk(
         absolute_file_path=absolute_file_path,
         chunk_number=chunk_number,
@@ -98,6 +110,7 @@ def find_chunks_for_files(
     ],
 ) -> str:
     """Locate chunks containing files that match a specific glob pattern. Auto-loads the diff file if not already loaded. Essential for targeted analysis when you need to focus on specific file types, directories, or naming patterns (e.g., '*.py' for Python files, '*test*' for test files, 'src/*' for source directory). Returns chunk numbers which you then examine using get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt direct file reading. Use this for efficient navigation to relevant changes instead of processing entire large diffs sequentially."""
+    logger.info("find_chunks_for_files: %s pattern=%s", absolute_file_path, pattern)
     result = tools.find_chunks_for_files(
         absolute_file_path=absolute_file_path,
         pattern=pattern,
@@ -118,6 +131,7 @@ def get_file_diff(
     ],
 ) -> str:
     """Extract the complete diff for a single file from a loaded diff. Returns the diff --git header and all hunks for that file. Use this when you need changes for one specific file without fetching the entire chunk. Auto-loads the diff file if not already loaded. Supports exact file paths or glob patterns that match exactly one file. Use list_chunks with file_details to see per-file line counts and decide whether to use this tool or get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail."""
+    logger.info("get_file_diff: %s file=%s", absolute_file_path, file_path)
     result = tools.get_file_diff(
         absolute_file_path=absolute_file_path,
         file_path=file_path,

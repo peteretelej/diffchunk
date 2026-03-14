@@ -126,7 +126,7 @@ class TestIntegrationWithRealData:
         assert len(chunk_content_no_context) < len(chunk_content)
 
         # Test invalid chunk number
-        with pytest.raises(ValueError, match="Chunk .* not found"):
+        with pytest.raises(ValueError, match="Chunk .* does not exist"):
             tools.get_chunk(str(diff_file), chunk_count + 1)
 
     def test_find_chunks_for_files(self, tools, test_data_dir):

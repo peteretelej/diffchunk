@@ -1,11 +1,15 @@
 """MCP tools implementation for diffchunk."""
 
 import fnmatch
-import os
 import hashlib
+import logging
+import os
+import time
 from typing import Dict, Any, List, Optional
 from .models import DiffSession
 from .chunker import DiffChunker
+
+logger = logging.getLogger("diffchunk")
 
 
 class DiffChunkTools:
@@ -71,7 +75,7 @@ class DiffChunkTools:
             raise ValueError(f"Path is not a file: {resolved_file_path}")
 
         if not os.path.exists(resolved_file_path):
-            raise ValueError(f"Diff file not found: {absolute_file_path}")
+            raise ValueError(f"Diff file not found: {absolute_file_path}. Verify the file exists and the path is absolute.")
 
         if not os.access(resolved_file_path, os.R_OK):
             raise ValueError(f"Cannot read file: {resolved_file_path}")
@@ -89,20 +93,24 @@ class DiffChunkTools:
         # Create new session
         session = DiffSession(resolved_file_path)
 
-        # Configure chunker
-        self.chunker.max_chunk_lines = max_chunk_lines
-
-        try:
-            # Chunk the diff
-            self.chunker.chunk_diff(
-                session,
-                skip_trivial=skip_trivial,
-                skip_generated=skip_generated,
-                include_patterns=include_list,
-                exclude_patterns=exclude_list,
-            )
-        except ValueError as e:
-            raise e
+        # Chunk the diff
+        start = time.monotonic()
+        self.chunker.chunk_diff(
+            session,
+            max_chunk_lines=max_chunk_lines,
+            skip_trivial=skip_trivial,
+            skip_generated=skip_generated,
+            include_patterns=include_list,
+            exclude_patterns=exclude_list,
+        )
+        elapsed = time.monotonic() - start
+        logger.info(
+            "Parsed and chunked %s: %d chunks, %d files in %.2fs",
+            absolute_file_path,
+            session.stats.chunks_count,
+            session.stats.total_files,
+            elapsed,
+        )
 
         # Store session
         file_key = self._get_file_key(absolute_file_path)
@@ -171,7 +179,7 @@ class DiffChunkTools:
         if not chunk:
             total_chunks = len(session.chunks)
             raise ValueError(
-                f"Chunk {chunk_number} not found. Available chunks: 1-{total_chunks}"
+                f"Chunk {chunk_number} does not exist. The diff has {total_chunks} chunks (1-{total_chunks}). Use list_chunks to see what each chunk contains."
             )
 
         if include_context:
@@ -189,7 +197,7 @@ class DiffChunkTools:
         session = self.sessions[file_key]
 
         if not isinstance(pattern, str) or not pattern.strip():
-            raise ValueError("Pattern must be a non-empty string")
+            raise ValueError("Pattern must be a non-empty string. Use '*' to match all files, '*.py' for Python files, or 'src/*' for a directory.")
 
         matching_chunks = session.find_chunks_for_files(pattern.strip())
 
@@ -216,14 +224,14 @@ class DiffChunkTools:
             suffix = "..." if len(all_files) > 20 else ""
             raise ValueError(
                 f"No file matching '{file_path}' found in diff. "
-                f"Available files: {available}{suffix}"
+                f"Available files: {available}{suffix}. Use find_chunks_for_files to search by pattern."
             )
 
         if len(matches) > 1:
             matched_list = ", ".join(sorted(matches))
             raise ValueError(
-                f"Pattern '{file_path}' matches multiple files: {matched_list}. "
-                f"Use a more specific path."
+                f"Pattern '{file_path}' matches {len(matches)} files: {matched_list}. "
+                f"Use a more specific path or exact filename."
             )
 
         target_file = matches[0]

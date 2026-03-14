@@ -1,8 +1,11 @@
 """Diff file parsing functionality."""
 
 import fnmatch
+import logging
 import re
 from typing import List, Tuple, Iterator
+
+logger = logging.getLogger("diffchunk")
 
 
 class DiffParser:
@@ -134,6 +137,12 @@ class DiffParser:
         # Use detected encoding if confident, otherwise UTF-8
         encoding = (
             result.get("encoding") if result.get("confidence", 0) > 0.7 else "utf-8"
+        )
+        logger.debug(
+            "Detected encoding %s (confidence %.1f) for %s",
+            encoding,
+            result.get("confidence", 0),
+            file_path,
         )
 
         try:
