@@ -107,12 +107,14 @@ class DiffChunkTools:
         )
         elapsed = time.monotonic() - start
         logger.info(
-            "Parsed and chunked %s: %d chunks, %d files in %.2fs",
-            absolute_file_path,
+            "Loading diff: %s (max_chunk_lines=%d) - %d chunks, %d files in %.2fs",
+            os.path.basename(resolved_file_path),
+            max_chunk_lines,
             session.stats.chunks_count,
             session.stats.total_files,
             elapsed,
         )
+        logger.debug("Full diff path: %s", resolved_file_path)
 
         # Store session
         file_key = self._get_file_key(absolute_file_path)

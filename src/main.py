@@ -36,9 +36,15 @@ MCP Client Configuration:
 
     try:
         print(
-            f"Starting diffchunk MCP server v{version('diffchunk')}...", file=sys.stderr
+            f"Starting diffchunk MCP server v{version('diffchunk')}...",
+            file=sys.stderr,
+            flush=True,
         )
-        print("Server ready - waiting for MCP client connection", file=sys.stderr)
+        print(
+            "Server ready - waiting for MCP client connection",
+            file=sys.stderr,
+            flush=True,
+        )
         mcp.run()
     except (KeyboardInterrupt, asyncio.CancelledError):
         print("Server shutdown requested", file=sys.stderr)

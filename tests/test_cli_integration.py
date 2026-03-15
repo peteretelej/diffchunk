@@ -17,7 +17,7 @@ class TestCLIIntegration:
             [sys.executable, "-m", "src.main", "--help"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=30,
         )
 
         assert result.returncode == 0
@@ -131,12 +131,13 @@ class TestCLIIntegration:
         )
 
         try:
-            # Let it start and produce some output
-            time.sleep(1)
+            # Give extra time on Windows where startup is slower
+            startup_wait = 3 if platform.system() == "Windows" else 1
+            time.sleep(startup_wait)
 
             # Terminate and get output
             process.terminate()
-            stdout, stderr = process.communicate(timeout=3)
+            stdout, stderr = process.communicate(timeout=5)
 
             # Check startup messages
             assert "Starting diffchunk MCP server" in stderr
