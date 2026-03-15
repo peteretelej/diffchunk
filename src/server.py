@@ -92,7 +92,9 @@ def get_chunk(
     ] = True,
 ) -> str:
     """Retrieve the actual content of a specific numbered chunk from a diff file. Auto-loads the diff file if not already loaded. Use this for systematic analysis of changes chunk-by-chunk, or to examine specific chunks identified via list_chunks or find_chunks_for_files. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT read diff files directly - they exceed LLM context windows. This tool provides manageable portions of large diffs. Track your progress through chunks when doing comprehensive analysis and clean up tracking documents before final results."""
-    logger.info("get_chunk: %s chunk=%d", os.path.basename(absolute_file_path), chunk_number)
+    logger.info(
+        "get_chunk: %s chunk=%d", os.path.basename(absolute_file_path), chunk_number
+    )
     logger.debug("get_chunk full path: %s", absolute_file_path)
     result = tools.get_chunk(
         absolute_file_path=absolute_file_path,
@@ -115,7 +117,11 @@ def find_chunks_for_files(
     ],
 ) -> str:
     """Locate chunks containing files that match a specific glob pattern. Auto-loads the diff file if not already loaded. Essential for targeted analysis when you need to focus on specific file types, directories, or naming patterns (e.g., '*.py' for Python files, '*test*' for test files, 'src/*' for source directory). Returns chunk numbers which you then examine using get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt direct file reading. Use this for efficient navigation to relevant changes instead of processing entire large diffs sequentially."""
-    logger.info("find_chunks_for_files: %s pattern=%s", os.path.basename(absolute_file_path), pattern)
+    logger.info(
+        "find_chunks_for_files: %s pattern=%s",
+        os.path.basename(absolute_file_path),
+        pattern,
+    )
     logger.debug("find_chunks_for_files full path: %s", absolute_file_path)
     result = tools.find_chunks_for_files(
         absolute_file_path=absolute_file_path,
@@ -137,7 +143,9 @@ def get_file_diff(
     ],
 ) -> str:
     """Extract the complete diff for a single file from a loaded diff. Returns the diff --git header and all hunks for that file. Use this when you need changes for one specific file without fetching the entire chunk. Auto-loads the diff file if not already loaded. Supports exact file paths or glob patterns that match exactly one file. Use list_chunks with file_details to see per-file line counts and decide whether to use this tool or get_chunk. CRITICAL: You must use an absolute directory path - relative paths will fail."""
-    logger.info("get_file_diff: %s file=%s", os.path.basename(absolute_file_path), file_path)
+    logger.info(
+        "get_file_diff: %s file=%s", os.path.basename(absolute_file_path), file_path
+    )
     logger.debug("get_file_diff full path: %s", absolute_file_path)
     result = tools.get_file_diff(
         absolute_file_path=absolute_file_path,
