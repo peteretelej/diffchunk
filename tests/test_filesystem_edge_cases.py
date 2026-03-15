@@ -155,7 +155,7 @@ class TestFileSystemEdgeCases:
         total_chunks = result["chunks"]
 
         # Chunk number too high
-        with pytest.raises(ValueError, match="Chunk .* not found"):
+        with pytest.raises(ValueError, match="Chunk .* does not exist"):
             tools.get_chunk(react_diff_file, total_chunks + 1)
 
     def test_tools_operations_without_diff_loaded(self, tools):

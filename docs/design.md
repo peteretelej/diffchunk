@@ -10,6 +10,8 @@ MCP server that chunks large diff files for efficient LLM navigation. Uses file-
 Diff File → Canonicalize Path → Hash Content → Cache Check → Parse → Filter → Chunk → Index → Tools
 ```
 
+The server uses FastMCP with module-level `@mcp.tool()` decorated sync functions (not a class). Resources use `@mcp.resource()`. Error handling is automatic: `ValueError` raised in any tool function is caught by FastMCP and returned as `CallToolResult(isError=True)`. All tools have `annotations={"readOnlyHint": True}` and `structured_output=False` (to prevent `outputSchema` generation).
+
 ## Tools
 
 ### load_diff (Optional)
@@ -156,14 +158,15 @@ class DiffStats:
 - File existence validation
 - Diff format verification
 - Graceful handling of malformed sections
-- Clear error messages for invalid patterns
+- Actionable error messages that guide LLMs to self-correct
+- `ValueError` automatically surfaces as `isError=True` through FastMCP
 
 ## Project Structure
 
 ```
 src/
 ├── main.py           # CLI entry point
-├── server.py         # MCP server (DiffChunkServer)
+├── server.py         # MCP server (FastMCP module-level tools)
 ├── tools.py          # MCP tools (DiffChunkTools)
 ├── models.py         # Data models
 ├── parser.py         # Diff parsing (DiffParser)
@@ -172,7 +175,12 @@ src/
 
 ## Resources
 
-- `diffchunk://current` - Overview of loaded diffs via MCP resource protocol
+- `diffchunk://current` - Overview of loaded diffs via `@mcp.resource("diffchunk://current")` decorator
+
+### File Matching
+
+- Pattern matching (glob) is case-insensitive, matching macOS/Windows filesystem behavior
+- Both `find_chunks_for_files` and `get_file_diff` use case-insensitive comparison
 
 ## Performance
 

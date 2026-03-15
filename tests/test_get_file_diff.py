@@ -117,7 +117,7 @@ class TestGetFileDiff:
 
     def test_glob_pattern_multiple_matches(self, tools, multi_file_diff_path):
         """get_file_diff with multiple matches raises error."""
-        with pytest.raises(ValueError, match="matches multiple files"):
+        with pytest.raises(ValueError, match="matches \\d+ files"):
             tools.get_file_diff(multi_file_diff_path, "src/*")
 
     def test_auto_loads_if_not_loaded(self, tools, multi_file_diff_path):

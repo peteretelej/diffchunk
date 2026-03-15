@@ -1,0 +1,3 @@
+# Ensure diff test data uses LF line endings on all platforms
+*.diff eol=lf
+tests/test_data/** eol=lf

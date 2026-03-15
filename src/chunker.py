@@ -20,8 +20,13 @@ class DiffChunker:
         skip_generated: bool = True,
         include_patterns: List[str] | None = None,
         exclude_patterns: List[str] | None = None,
+        max_chunk_lines: int | None = None,
     ) -> None:
         """Chunk a diff file into the session."""
+        if max_chunk_lines is None:
+            max_chunk_lines = self.max_chunk_lines
+        elif not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
+            raise ValueError("max_chunk_lines must be a positive integer")
         chunk_number = 1
         current_chunk_lines = 0
         current_chunk_content: List[str] = []
@@ -55,7 +60,7 @@ class DiffChunker:
             file_name = files[-1]
 
             # Check if this file needs to be split
-            if content_lines > self.max_chunk_lines:
+            if content_lines > max_chunk_lines:
                 # Save current chunk if it has content
                 if current_chunk_content:
                     self._save_chunk(
@@ -73,7 +78,9 @@ class DiffChunker:
                     current_chunk_file_line_counts = {}
 
                 # Split the large file
-                file_chunks = self._split_large_file(files, content, content_lines)
+                file_chunks = self._split_large_file(
+                    files, content, content_lines, max_chunk_lines
+                )
                 parent_file = files[0] if len(files) == 1 else f"{len(files)} files"
 
                 for sub_index, (sub_files, sub_content, sub_lines) in enumerate(
@@ -95,7 +102,7 @@ class DiffChunker:
                 # Check if we need to start a new chunk
                 if (
                     current_chunk_content
-                    and current_chunk_lines + content_lines > self.max_chunk_lines
+                    and current_chunk_lines + content_lines > max_chunk_lines
                 ):
                     # Save current chunk
                     self._save_chunk(
@@ -172,10 +179,10 @@ class DiffChunker:
         session.add_chunk(chunk)
 
     def _split_large_file(
-        self, files: List[str], content: str, file_line_count: int
+        self, files: List[str], content: str, file_line_count: int, max_chunk_lines: int
     ) -> List[Tuple[List[str], str, int]]:
         """Split a large file's diff content at hunk boundaries."""
-        if file_line_count <= self.max_chunk_lines:
+        if file_line_count <= max_chunk_lines:
             return [(files, content, file_line_count)]
 
         # Pattern to match hunk headers like @@ -1,4 +1,6 @@
@@ -192,7 +199,7 @@ class DiffChunker:
 
         # Be very aggressive about staying under the limit
         target_chunk_size = max(
-            self.max_chunk_lines * 0.8, 200
+            max_chunk_lines * 0.8, 200
         )  # 80% of limit or 200 lines minimum
 
         for i, line in enumerate(lines):
@@ -236,10 +243,7 @@ class DiffChunker:
                 current_chunk_line_count += 1
 
             # STRICT enforcement: split immediately if we exceed limit
-            if (
-                current_chunk_line_count + len(file_header_lines)
-                >= self.max_chunk_lines
-            ):
+            if current_chunk_line_count + len(file_header_lines) >= max_chunk_lines:
                 # Find the last hunk header in current chunk to split there
                 last_hunk_idx = None
                 for j in range(len(current_chunk_lines) - 1, -1, -1):

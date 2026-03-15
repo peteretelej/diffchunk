@@ -4,7 +4,6 @@ from pathlib import Path
 
 import pytest
 
-from src.server import DiffChunkServer
 from src.tools import DiffChunkTools
 
 
@@ -187,25 +186,6 @@ class TestMCPComponents:
         file_paths = [s["file_path"] for s in overview["sessions"]]
         assert react_diff_file in file_paths
         assert go_diff_file in file_paths
-
-    def test_mcp_server_creation(self):
-        """Test MCP server can be created successfully."""
-        server = DiffChunkServer()
-
-        # Verify server has the expected attributes
-        assert server.app is not None
-        assert server.tools is not None
-        assert isinstance(server.tools, DiffChunkTools)
-
-    def test_mcp_server_tools_registration(self):
-        """Test that MCP server has tools registered."""
-        server = DiffChunkServer()
-
-        # The server should have handlers set up
-        # This is a basic smoke test to ensure the server initializes
-        assert hasattr(server, "app")
-        assert hasattr(server, "tools")
-        assert hasattr(server, "_setup_handlers")
 
     def test_filtering_and_chunking_options(self, go_diff_file):
         """Test different filtering and chunking options."""

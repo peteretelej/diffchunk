@@ -287,7 +287,7 @@ wheels = [
 
 [[package]]
 name = "diffchunk"
-version = "0.1.7"
+version = "0.1.9"
 source = { editable = "." }
 dependencies = [
     { name = "chardet" },
@@ -308,7 +308,7 @@ dev = [
 requires-dist = [
     { name = "chardet", specifier = ">=4.0.0" },
     { name = "click", specifier = ">=8.2.1" },
-    { name = "mcp", specifier = ">=1.10.0" },
+    { name = "mcp", specifier = ">=1.7.0,<2.0.0" },
 ]
 
 [package.metadata.requires-dev]

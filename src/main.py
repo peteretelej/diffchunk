@@ -4,7 +4,8 @@ import argparse
 import asyncio
 import sys
 from importlib.metadata import version
-from .server import DiffChunkServer
+
+from .server import mcp
 
 
 def main():
@@ -35,12 +36,17 @@ MCP Client Configuration:
 
     try:
         print(
-            f"Starting diffchunk MCP server v{version('diffchunk')}...", file=sys.stderr
+            f"Starting diffchunk MCP server v{version('diffchunk')}...",
+            file=sys.stderr,
+            flush=True,
         )
-        print("Server ready - waiting for MCP client connection", file=sys.stderr)
-        server = DiffChunkServer()
-        asyncio.run(server.run())
-    except KeyboardInterrupt:
+        print(
+            "Server ready - waiting for MCP client connection",
+            file=sys.stderr,
+            flush=True,
+        )
+        mcp.run()
+    except (KeyboardInterrupt, asyncio.CancelledError):
         print("Server shutdown requested", file=sys.stderr)
         sys.exit(0)
     except Exception as e:
