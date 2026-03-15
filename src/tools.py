@@ -218,8 +218,10 @@ class DiffChunkTools:
         file_path = file_path.strip()
         all_files = list(session.file_to_chunks.keys())
 
-        # Try exact match first, then glob matching (case-insensitive)
-        matches = [f for f in all_files if f.lower() == file_path.lower()]
+        # Try exact match first, then case-insensitive, then glob
+        matches = [f for f in all_files if f == file_path]
+        if not matches:
+            matches = [f for f in all_files if f.lower() == file_path.lower()]
         if not matches:
             matches = [
                 f for f in all_files if fnmatch.fnmatch(f.lower(), file_path.lower())

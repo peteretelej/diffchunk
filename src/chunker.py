@@ -23,7 +23,10 @@ class DiffChunker:
         max_chunk_lines: int | None = None,
     ) -> None:
         """Chunk a diff file into the session."""
-        max_chunk_lines = max_chunk_lines or self.max_chunk_lines
+        if max_chunk_lines is None:
+            max_chunk_lines = self.max_chunk_lines
+        elif not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
+            raise ValueError("max_chunk_lines must be a positive integer")
         chunk_number = 1
         current_chunk_lines = 0
         current_chunk_content: List[str] = []
