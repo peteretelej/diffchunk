@@ -214,6 +214,32 @@ def _format_annotated(content: str, chunk_files: List[str]) -> str:
     return "\n".join(output_parts)
 
 
+def _format_compact(content: str, chunk_files: List[str]) -> str:
+    """Format chunk content into compact format: only new hunks (context + added lines).
+
+    Omits removed lines and __old hunk__ sections entirely.
+    Keeps ## File: headers and __new hunk__ markers for structure.
+    """
+    sections = _parse_file_sections(content)
+
+    if not sections:
+        return content
+
+    output_parts: List[str] = []
+
+    for section in sections:
+        output_parts.append(f"## File: '{section.path}'")
+
+        for hunk in section.hunks:
+            # Only emit __new hunk__ if there are added or context lines
+            if _has_added_or_context_lines(hunk):
+                output_parts.append(_hunk_header("__new hunk__", hunk.function_context))
+                output_parts.extend(_build_new_hunk(hunk))
+            # Skip __old hunk__ entirely
+
+    return "\n".join(output_parts)
+
+
 def format_chunk(content: str, mode: FormatMode, chunk_files: List[str]) -> str:
     """Format chunk content according to the specified mode.
 
@@ -230,5 +256,5 @@ def format_chunk(content: str, mode: FormatMode, chunk_files: List[str]) -> str:
     if mode == FormatMode.ANNOTATED:
         return _format_annotated(content, chunk_files)
     if mode == FormatMode.COMPACT:
-        return content  # Placeholder - implemented in Phase 3
+        return _format_compact(content, chunk_files)
     return content

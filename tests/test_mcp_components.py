@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from src.formatter import _format_annotated
+from src.formatter import _format_annotated, _format_compact
 from src.tools import DiffChunkTools
 
 
@@ -600,3 +600,225 @@ class TestAnnotatedFormat:
         assert "50" in new_hunk_lines[3] and "+another new line" in new_hunk_lines[3]
         assert new_hunk_lines[4].strip().startswith("51")
         assert new_hunk_lines[5].strip().startswith("52")
+
+
+class TestCompactFormat:
+    """Tests for the compact format output."""
+
+    def test_compact_omits_removed_lines(self):
+        """Compact output contains no removed lines (no - prefixed content lines)."""
+        diff = (
+            "diff --git a/src/auth.py b/src/auth.py\n"
+            "index abc1234..def5678 100644\n"
+            "--- a/src/auth.py\n"
+            "+++ b/src/auth.py\n"
+            "@@ -10,5 +10,5 @@ def authenticate\n"
+            " unchanged\n"
+            "-old line removed\n"
+            "+new line added\n"
+            " trailing ctx\n"
+            " end\n"
+        )
+        result = _format_compact(diff, ["src/auth.py"])
+
+        # Split into lines and check content lines (skip headers/markers)
+        lines = result.split("\n")
+        content_lines = [
+            l for l in lines
+            if not l.startswith("## File:") and not l.startswith("__")
+            and l.strip()
+        ]
+        # No content line should have a - prefix (removed line format is "    -text")
+        for line in content_lines:
+            stripped = line.strip()
+            assert not stripped.startswith("-"), (
+                f"Found removed line in compact output: {line!r}"
+            )
+
+    def test_compact_no_old_hunk_sections(self):
+        """No __old hunk__ sections appear in compact output."""
+        diff = (
+            "diff --git a/src/auth.py b/src/auth.py\n"
+            "index abc1234..def5678 100644\n"
+            "--- a/src/auth.py\n"
+            "+++ b/src/auth.py\n"
+            "@@ -10,4 +10,5 @@ def authenticate\n"
+            " unchanged\n"
+            " also unchanged\n"
+            "+new line\n"
+            " trailing ctx\n"
+            "@@ -30,3 +31,3 @@ def logout\n"
+            " ctx\n"
+            "-old removed\n"
+            "+new replaced\n"
+            " ctx end\n"
+        )
+        result = _format_compact(diff, ["src/auth.py"])
+
+        assert "__old hunk__" not in result
+        assert "__new hunk__" in result
+
+    def test_compact_line_numbers_and_plus_prefix(self):
+        """Line numbers use new-file numbering, + prefixes on added lines."""
+        diff = (
+            "diff --git a/example.py b/example.py\n"
+            "index abc..def 100644\n"
+            "--- a/example.py\n"
+            "+++ b/example.py\n"
+            "@@ -45,5 +47,7 @@ def authenticate\n"
+            " unchanged line\n"
+            " unchanged line\n"
+            "+new line added\n"
+            "+another new line\n"
+            " unchanged line\n"
+            "-old line removed\n"
+            " last line\n"
+        )
+        result = _format_compact(diff, ["example.py"])
+        lines = result.split("\n")
+
+        # Collect content lines (not headers/markers)
+        content_lines = []
+        in_hunk = False
+        for l in lines:
+            if l.startswith("__new hunk__"):
+                in_hunk = True
+                continue
+            if l.startswith("## File:"):
+                in_hunk = False
+                continue
+            if in_hunk and l.strip():
+                content_lines.append(l)
+
+        # Should have 6 lines: 2 context, 2 added, 1 context (skip removed), 1 context
+        assert len(content_lines) == 6
+
+        # Verify new-file line numbers
+        assert content_lines[0].strip().startswith("47")  # first context
+        assert content_lines[1].strip().startswith("48")  # second context
+        assert "49" in content_lines[2] and "+new line added" in content_lines[2]
+        assert "50" in content_lines[3] and "+another new line" in content_lines[3]
+        assert content_lines[4].strip().startswith("51")  # context after adds
+        # removed line is skipped, so next is "last line" at 52
+        assert content_lines[5].strip().startswith("52")
+
+    def test_compact_multi_file_multi_hunk(self):
+        """Multi-file, multi-hunk content formatted correctly in compact mode."""
+        diff = (
+            "diff --git a/src/auth.py b/src/auth.py\n"
+            "index abc1234..def5678 100644\n"
+            "--- a/src/auth.py\n"
+            "+++ b/src/auth.py\n"
+            "@@ -10,4 +10,5 @@ def authenticate\n"
+            " unchanged\n"
+            " also unchanged\n"
+            "+new line\n"
+            " trailing ctx\n"
+            "@@ -30,3 +31,3 @@ def logout\n"
+            " ctx\n"
+            "-old removed\n"
+            "+new replaced\n"
+            " ctx end\n"
+            "diff --git a/src/utils.py b/src/utils.py\n"
+            "index 1111111..2222222 100644\n"
+            "--- a/src/utils.py\n"
+            "+++ b/src/utils.py\n"
+            "@@ -1,3 +1,4 @@\n"
+            " first\n"
+            "+inserted\n"
+            " second\n"
+            " third\n"
+        )
+        result = _format_compact(diff, ["src/auth.py", "src/utils.py"])
+
+        # File headers present
+        assert "## File: 'src/auth.py'" in result
+        assert "## File: 'src/utils.py'" in result
+
+        # __new hunk__ markers present with function context
+        assert "__new hunk__ | def authenticate" in result
+        assert "__new hunk__ | def logout" in result
+
+        # No __old hunk__ sections
+        assert "__old hunk__" not in result
+
+        # Verify no removed lines in output content
+        lines = result.split("\n")
+        content_lines = [
+            l for l in lines
+            if not l.startswith("## File:") and not l.startswith("__")
+            and l.strip()
+        ]
+        for line in content_lines:
+            stripped = line.strip()
+            assert not stripped.startswith("-"), (
+                f"Found removed line in compact output: {line!r}"
+            )
+
+        # Should have three __new hunk__ markers total (2 for auth.py, 1 for utils.py)
+        new_hunk_count = sum(1 for l in lines if l.startswith("__new hunk__"))
+        assert new_hunk_count == 3
+
+    def test_compact_deleted_file_no_output(self):
+        """Deleted file (only removed lines) produces file header but no hunk content."""
+        diff = (
+            "diff --git a/removed.py b/removed.py\n"
+            "deleted file mode 100644\n"
+            "index abcdef1..0000000\n"
+            "--- a/removed.py\n"
+            "+++ /dev/null\n"
+            "@@ -1,3 +0,0 @@\n"
+            "-line one\n"
+            "-line two\n"
+            "-line three\n"
+        )
+        result = _format_compact(diff, ["removed.py"])
+
+        assert "## File: 'removed.py'" in result
+        # No hunk sections at all since there are no added/context lines
+        assert "__new hunk__" not in result
+        assert "__old hunk__" not in result
+
+    def test_compact_new_file_all_added(self):
+        """New file (only added lines) produces correct compact output."""
+        diff = (
+            "diff --git a/newfile.py b/newfile.py\n"
+            "new file mode 100644\n"
+            "index 0000000..abcdef1\n"
+            "--- /dev/null\n"
+            "+++ b/newfile.py\n"
+            "@@ -0,0 +1,3 @@\n"
+            "+line one\n"
+            "+line two\n"
+            "+line three\n"
+        )
+        result = _format_compact(diff, ["newfile.py"])
+
+        assert "## File: 'newfile.py'" in result
+        assert "__new hunk__" in result
+        assert "__old hunk__" not in result
+
+        # All lines should have + prefix and line numbers
+        lines = result.split("\n")
+        added_lines = [l for l in lines if "+" in l and "line" in l]
+        assert len(added_lines) == 3
+
+    def test_compact_via_tools_get_chunk(self):
+        """Compact format works end-to-end via DiffChunkTools.get_chunk."""
+        test_data_dir = Path(__file__).parent / "test_data"
+        react_diff = test_data_dir / "react_18.0_to_18.3.diff"
+        if not react_diff.exists():
+            pytest.skip("React test diff not found")
+
+        tools = DiffChunkTools()
+        tools.load_diff(str(react_diff), max_chunk_lines=3000)
+
+        compact = tools.get_chunk(
+            str(react_diff), 1, format="compact", include_context=False
+        )
+
+        # Should contain structural elements
+        assert "## File:" in compact
+        assert "__new hunk__" in compact
+        # Should NOT contain __old hunk__
+        assert "__old hunk__" not in compact
