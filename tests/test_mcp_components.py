@@ -822,3 +822,60 @@ class TestCompactFormat:
         assert "__new hunk__" in compact
         # Should NOT contain __old hunk__
         assert "__old hunk__" not in compact
+
+
+class TestFilesExcludedCount:
+    """Tests for files_excluded tracking in load_diff responses."""
+
+    @pytest.fixture
+    def test_data_dir(self):
+        """Return path to test data directory."""
+        return Path(__file__).parent / "test_data"
+
+    @pytest.fixture
+    def go_diff_file(self, test_data_dir):
+        """Return path to Go test diff file."""
+        diff_file = test_data_dir / "go_version_upgrade_1.22_to_1.23.diff"
+        if not diff_file.exists():
+            pytest.skip("Go test diff not found")
+        return str(diff_file)
+
+    @pytest.fixture
+    def react_diff_file(self, test_data_dir):
+        """Return path to React test diff file."""
+        diff_file = test_data_dir / "react_18.0_to_18.3.diff"
+        if not diff_file.exists():
+            pytest.skip("React test diff not found")
+        return str(diff_file)
+
+    def test_files_excluded_with_exclude_patterns(self, go_diff_file):
+        """Loading with exclude_patterns reports files_excluded > 0."""
+        tools = DiffChunkTools()
+        result = tools.load_diff(go_diff_file, exclude_patterns="*.md")
+
+        assert "files_excluded" in result
+        assert result["files_excluded"] > 0
+
+    def test_files_excluded_zero_without_patterns(self, go_diff_file):
+        """Loading without exclude_patterns reports files_excluded == 0."""
+        tools = DiffChunkTools()
+        result = tools.load_diff(go_diff_file)
+
+        assert "files_excluded" in result
+        assert result["files_excluded"] == 0
+
+    def test_excluded_files_not_in_list_chunks(self, react_diff_file):
+        """Files removed by exclude_patterns do not appear in list_chunks."""
+        tools = DiffChunkTools()
+
+        # Load with json files excluded
+        result = tools.load_diff(react_diff_file, exclude_patterns="*.json")
+        assert result["files_excluded"] > 0
+
+        # Verify no .json files appear in chunk listings
+        chunks = tools.list_chunks(react_diff_file)
+        for chunk_info in chunks:
+            for file_path in chunk_info["files"]:
+                assert not file_path.endswith(".json"), (
+                    f"Excluded file '{file_path}' found in list_chunks output"
+                )

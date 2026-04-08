@@ -41,6 +41,8 @@ class DiffChunker:
         if not file_changes:
             raise ValueError("Diff file parsed successfully but contains no changes")
 
+        files_excluded_count = 0
+
         for files, content in file_changes:
             # Apply filters
             if skip_trivial and self.parser.is_trivial_change(content):
@@ -52,6 +54,7 @@ class DiffChunker:
             if not self.parser.should_include_file(
                 files, include_patterns, exclude_patterns
             ):
+                files_excluded_count += 1
                 continue
 
             content_lines = self.parser.count_lines(content)
@@ -140,6 +143,7 @@ class DiffChunker:
 
         # Update session statistics
         session.update_stats()
+        session.stats.files_excluded = files_excluded_count
 
         if not session.chunks:
             raise ValueError(

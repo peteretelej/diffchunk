@@ -148,6 +148,7 @@ class DiffChunkTools:
             "files": session.stats.total_files,
             "total_lines": session.stats.total_lines,
             "file_path": absolute_file_path,
+            "files_excluded": session.stats.files_excluded,
         }
 
     def list_chunks(self, absolute_file_path: str) -> List[Dict[str, Any]]:

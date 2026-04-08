@@ -21,6 +21,7 @@ class DiffStats:
     total_files: int
     total_lines: int
     chunks_count: int
+    files_excluded: int = 0
 
 
 @dataclass
