@@ -6,6 +6,16 @@ from enum import Enum
 from typing import Any, Dict, List
 
 
+def estimate_tokens(content: str) -> int:
+    """Estimate token count from content length.
+
+    Uses character count / 4 as a rough heuristic. This intentionally
+    underestimates for code (which has shorter tokens on average),
+    making it conservative for context-budget planning.
+    """
+    return len(content) // 4
+
+
 class FormatMode(str, Enum):
     """Output format modes for chunk content."""
 
@@ -32,6 +42,7 @@ class ChunkInfo:
     files: List[str]
     line_count: int
     summary: str
+    token_count: int = 0
     parent_file: str | None = None
     sub_chunk_index: int | None = None
     file_details: List[Dict[str, Any]] = field(default_factory=list)
@@ -83,6 +94,8 @@ class DiffSession:
             else:
                 summary = f"{len(chunk.files)} files, {chunk.line_count} lines"
 
+            token_count = estimate_tokens(chunk.content)
+
             file_details = [
                 {"path": path, "lines": lines}
                 for path, lines in chunk.file_line_counts.items()
@@ -93,6 +106,7 @@ class DiffSession:
                 files=chunk.files,
                 line_count=chunk.line_count,
                 summary=summary,
+                token_count=token_count,
                 parent_file=chunk.parent_file,
                 sub_chunk_index=chunk.sub_chunk_index,
                 file_details=file_details,

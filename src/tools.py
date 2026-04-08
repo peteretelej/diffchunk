@@ -159,25 +159,33 @@ class DiffChunkTools:
             "files_excluded": session.stats.files_excluded,
         }
 
-    def list_chunks(self, absolute_file_path: str) -> List[Dict[str, Any]]:
+    def list_chunks(self, absolute_file_path: str) -> Dict[str, Any]:
         """List all chunks with their metadata."""
         file_key = self._ensure_loaded(absolute_file_path)
         session = self.sessions[file_key]
 
         chunk_infos = session.list_chunk_infos()
 
-        return [
+        chunks = [
             {
                 "chunk": info.chunk_number,
                 "files": info.files,
                 "file_details": info.file_details,
                 "lines": info.line_count,
+                "token_count": info.token_count,
                 "summary": info.summary,
                 "parent_file": info.parent_file,
                 "sub_chunk_index": info.sub_chunk_index,
             }
             for info in chunk_infos
         ]
+
+        total_token_count = sum(info.token_count for info in chunk_infos)
+
+        return {
+            "chunks": chunks,
+            "total_token_count": total_token_count,
+        }
 
     def get_chunk(
         self,

@@ -79,7 +79,7 @@ def list_chunks(
         str, Field(description="Absolute path to the diff file")
     ],
 ) -> str:
-    """Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work."""
+    """Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work. Each chunk includes a `token_count` estimate, and the response includes `total_token_count` for context-budget planning."""
     logger.info("list_chunks: %s", os.path.basename(absolute_file_path))
     logger.debug("list_chunks full path: %s", absolute_file_path)
     result = tools.list_chunks(absolute_file_path=absolute_file_path)
