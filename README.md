@@ -1,11 +1,9 @@
 # diffchunk
 
 [![CI](https://github.com/peteretelej/diffchunk/actions/workflows/ci.yml/badge.svg)](https://github.com/peteretelej/diffchunk/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/peteretelej/diffchunk/branch/main/graph/badge.svg)](https://codecov.io/gh/peteretelej/diffchunk)
 [![PyPI version](https://img.shields.io/pypi/v/diffchunk.svg)](https://pypi.org/project/diffchunk/)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 
 MCP server that enables LLMs to navigate large diff files efficiently. Instead of reading entire diffs sequentially, LLMs can jump directly to relevant changes using pattern-based navigation.
@@ -164,9 +162,43 @@ load_diff(
     "/tmp/large.diff",
     max_chunk_lines=2000,
     include_patterns="*.py,*.js",
-    exclude_patterns="*test*"
+    exclude_patterns="*test*",
+    context_lines=2
 )
 ```
+
+### Format Options
+
+Use the `format` parameter on `get_chunk` to transform output for LLM consumption:
+
+```python
+# Default - raw diff output
+get_chunk("/tmp/changes.diff", 1, format="raw")
+
+# Annotated - structured with line numbers, file headers, hunk separation
+get_chunk("/tmp/changes.diff", 1, format="annotated")
+
+# Compact - token-efficient, only new hunks (context + added lines)
+get_chunk("/tmp/changes.diff", 1, format="compact")
+```
+
+**Annotated format** adds `## File:` headers, `__new hunk__`/`__old hunk__` sections with new-file line numbers, and function context from `@@` headers.
+
+**Compact format** shows only what was added or kept, omitting removed lines and `__old hunk__` sections entirely. Useful when you only need to see the final state.
+
+### Context Reduction
+
+Use `context_lines` on `load_diff` to reduce context lines per hunk at load time:
+
+```python
+# Keep only 2 lines of context around each change
+load_diff("/tmp/large.diff", context_lines=2)
+
+# Keep only changes, no context
+load_diff("/tmp/large.diff", context_lines=0)
+```
+
+This composes with `format` - context is reduced at load time, then formatting is applied at display time.
 
 ## Supported Formats
 

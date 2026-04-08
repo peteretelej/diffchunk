@@ -1131,3 +1131,336 @@ class TestContextLinesParameter:
                 break
         else:
             pytest.fail("No hunk header found in reduced output")
+
+
+class TestIntegrationFormatModes:
+    """Integration tests: load real diffs and verify each format mode produces valid output."""
+
+    @pytest.fixture
+    def test_data_dir(self):
+        return Path(__file__).parent / "test_data"
+
+    @pytest.fixture
+    def react_diff_file(self, test_data_dir):
+        diff_file = test_data_dir / "react_18.0_to_18.3.diff"
+        if not diff_file.exists():
+            pytest.skip("React test diff not found")
+        return str(diff_file)
+
+    @pytest.fixture
+    def go_diff_file(self, test_data_dir):
+        diff_file = test_data_dir / "go_version_upgrade_1.22_to_1.23.diff"
+        if not diff_file.exists():
+            pytest.skip("Go test diff not found")
+        return str(diff_file)
+
+    def test_all_format_modes_produce_valid_output(self, react_diff_file):
+        """Load a diff and get a chunk with each format mode; all should produce non-empty strings."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        for fmt in ("raw", "annotated", "compact"):
+            result = tools.get_chunk(
+                react_diff_file, 1, include_context=False, format=fmt
+            )
+            assert isinstance(result, str), f"format={fmt} returned non-string"
+            assert len(result) > 0, f"format={fmt} returned empty string"
+
+    def test_raw_matches_default(self, react_diff_file):
+        """format='raw' should produce byte-identical output to no format arg."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        default = tools.get_chunk(react_diff_file, 1, include_context=False)
+        raw = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="raw"
+        )
+        assert default == raw
+
+    def test_annotated_has_structural_elements(self, react_diff_file):
+        """Annotated output should contain ## File: headers and __new hunk__ markers."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        result = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="annotated"
+        )
+        assert "## File:" in result
+        assert "__new hunk__" in result
+
+    def test_compact_has_no_old_hunks(self, react_diff_file):
+        """Compact output should contain ## File: but no __old hunk__."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        result = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="compact"
+        )
+        assert "## File:" in result
+        assert "__new hunk__" in result
+        assert "__old hunk__" not in result
+
+    def test_context_lines_then_annotated_composition(self, react_diff_file):
+        """Load with context_lines=2, then get chunk with annotated format.
+
+        Both features should compose correctly: load-time reduction then display-time formatting.
+        """
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=5000, context_lines=2)
+
+        result = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="annotated"
+        )
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert "## File:" in result
+        assert "__new hunk__" in result
+
+    def test_context_lines_then_compact_composition(self, react_diff_file):
+        """Load with context_lines=1, then get chunk with compact format."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=5000, context_lines=1)
+
+        result = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="compact"
+        )
+        assert isinstance(result, str)
+        assert len(result) > 0
+        assert "## File:" in result
+        assert "__old hunk__" not in result
+
+    def test_exclude_patterns_then_format(self, react_diff_file):
+        """Load with exclude_patterns, verify files_excluded, then get chunk with format."""
+        tools = DiffChunkTools()
+        result = tools.load_diff(react_diff_file, exclude_patterns="*.json")
+
+        assert result["files_excluded"] > 0
+
+        # Get first chunk with annotated format - should still work
+        annotated = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="annotated"
+        )
+        assert isinstance(annotated, str)
+        assert len(annotated) > 0
+        assert "## File:" in annotated
+
+        # No .json files should appear in chunk listings
+        chunks = tools.list_chunks(react_diff_file)
+        for chunk_info in chunks:
+            for file_path in chunk_info["files"]:
+                assert not file_path.endswith(".json")
+
+    def test_exclude_and_context_lines_and_format_composition(self, react_diff_file):
+        """All three features compose: exclude + context_lines + format."""
+        tools = DiffChunkTools()
+        result = tools.load_diff(
+            react_diff_file,
+            exclude_patterns="*.json",
+            context_lines=2,
+            max_chunk_lines=5000,
+        )
+
+        assert result["files_excluded"] > 0
+
+        compact = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="compact"
+        )
+        assert isinstance(compact, str)
+        assert len(compact) > 0
+        assert "__old hunk__" not in compact
+
+
+class TestFormatterEdgeCases:
+    """Edge case tests for the formatter with crafted diff content."""
+
+    def test_binary_file_indicator(self):
+        """Binary file indicator should be handled gracefully."""
+        diff = (
+            "diff --git a/image.png b/image.png\n"
+            "index abc1234..def5678 100644\n"
+            "Binary files a/image.png and b/image.png differ\n"
+        )
+        # Should not crash - binary files have no hunks so formatter returns as-is
+        result_annotated = _format_annotated(diff, ["image.png"])
+        assert isinstance(result_annotated, str)
+
+        result_compact = _format_compact(diff, ["image.png"])
+        assert isinstance(result_compact, str)
+
+    def test_rename_only_patch(self):
+        """Rename-only patch (no hunks) should be handled gracefully."""
+        diff = (
+            "diff --git a/old_name.py b/new_name.py\n"
+            "similarity index 100%\n"
+            "rename from old_name.py\n"
+            "rename to new_name.py\n"
+        )
+        result_annotated = _format_annotated(diff, ["new_name.py"])
+        assert isinstance(result_annotated, str)
+
+        result_compact = _format_compact(diff, ["new_name.py"])
+        assert isinstance(result_compact, str)
+
+    def test_no_newline_at_end_of_file_marker(self):
+        """'No newline at end of file' markers should be handled without crash."""
+        diff = (
+            "diff --git a/file.py b/file.py\n"
+            "index abc..def 100644\n"
+            "--- a/file.py\n"
+            "+++ b/file.py\n"
+            "@@ -1,3 +1,3 @@\n"
+            " first line\n"
+            "-old last line\n"
+            "\\ No newline at end of file\n"
+            "+new last line\n"
+            "\\ No newline at end of file\n"
+        )
+        result_annotated = _format_annotated(diff, ["file.py"])
+        assert isinstance(result_annotated, str)
+        assert "__new hunk__" in result_annotated
+        assert "new last line" in result_annotated
+
+        result_compact = _format_compact(diff, ["file.py"])
+        assert isinstance(result_compact, str)
+        assert "__new hunk__" in result_compact
+        # Compact should not contain removed lines
+        lines = result_compact.split("\n")
+        content_lines = [
+            l
+            for l in lines
+            if not l.startswith("## File:") and not l.startswith("__") and l.strip()
+        ]
+        for line in content_lines:
+            assert not line.strip().startswith("-"), (
+                f"Found removed line in compact output: {line!r}"
+            )
+
+    def test_hunk_only_additions_new_file(self):
+        """New file with only added lines should produce __new hunk__ only."""
+        diff = (
+            "diff --git a/brand_new.py b/brand_new.py\n"
+            "new file mode 100644\n"
+            "index 0000000..abcdef1\n"
+            "--- /dev/null\n"
+            "+++ b/brand_new.py\n"
+            "@@ -0,0 +1,5 @@\n"
+            "+#!/usr/bin/env python3\n"
+            "+import os\n"
+            "+\n"
+            "+def main():\n"
+            "+    print('hello')\n"
+        )
+        result_annotated = _format_annotated(diff, ["brand_new.py"])
+        assert "## File: 'brand_new.py'" in result_annotated
+        assert "__new hunk__" in result_annotated
+        assert "__old hunk__" not in result_annotated
+
+        # All 5 lines should be present
+        lines = result_annotated.split("\n")
+        added_lines = [l for l in lines if "+" in l and l.strip()]
+        assert len(added_lines) >= 5
+
+        result_compact = _format_compact(diff, ["brand_new.py"])
+        assert "__new hunk__" in result_compact
+        assert "__old hunk__" not in result_compact
+
+    def test_hunk_only_deletions_deleted_file(self):
+        """Deleted file with only removed lines - annotated has __old hunk__, compact has nothing."""
+        diff = (
+            "diff --git a/old_file.py b/old_file.py\n"
+            "deleted file mode 100644\n"
+            "index abcdef1..0000000\n"
+            "--- a/old_file.py\n"
+            "+++ /dev/null\n"
+            "@@ -1,4 +0,0 @@\n"
+            "-import sys\n"
+            "-\n"
+            "-def old_func():\n"
+            "-    pass\n"
+        )
+        result_annotated = _format_annotated(diff, ["old_file.py"])
+        assert "## File: 'old_file.py'" in result_annotated
+        assert "__old hunk__" in result_annotated
+        assert "__new hunk__" not in result_annotated
+
+        result_compact = _format_compact(diff, ["old_file.py"])
+        assert "## File: 'old_file.py'" in result_compact
+        assert "__new hunk__" not in result_compact
+        assert "__old hunk__" not in result_compact
+
+    def test_multi_file_chunk_with_format(self):
+        """Multi-file chunk: each file gets its own ## File: header."""
+        diff = (
+            "diff --git a/src/models.py b/src/models.py\n"
+            "index abc..def 100644\n"
+            "--- a/src/models.py\n"
+            "+++ b/src/models.py\n"
+            "@@ -1,3 +1,4 @@\n"
+            " class User:\n"
+            "+    name: str\n"
+            "     age: int\n"
+            "     email: str\n"
+            "diff --git a/src/views.py b/src/views.py\n"
+            "index 111..222 100644\n"
+            "--- a/src/views.py\n"
+            "+++ b/src/views.py\n"
+            "@@ -5,3 +5,4 @@ def index\n"
+            " def index():\n"
+            "+    log('index')\n"
+            "     return render()\n"
+            "     pass\n"
+            "diff --git a/src/config.py b/src/config.py\n"
+            "index 333..444 100644\n"
+            "--- a/src/config.py\n"
+            "+++ b/src/config.py\n"
+            "@@ -10,3 +10,3 @@ class Config\n"
+            " DEBUG = True\n"
+            "-PORT = 8000\n"
+            "+PORT = 9000\n"
+            " HOST = 'localhost'\n"
+        )
+        result = _format_annotated(
+            diff, ["src/models.py", "src/views.py", "src/config.py"]
+        )
+
+        assert "## File: 'src/models.py'" in result
+        assert "## File: 'src/views.py'" in result
+        assert "## File: 'src/config.py'" in result
+
+        # Each file should have its own hunk markers
+        lines = result.split("\n")
+        file_headers = [l for l in lines if l.startswith("## File:")]
+        assert len(file_headers) == 3
+
+    def test_very_long_lines(self):
+        """Lines exceeding typical terminal width should not crash or truncate."""
+        long_text = "x" * 500
+        diff = (
+            "diff --git a/wide.txt b/wide.txt\n"
+            "index abc..def 100644\n"
+            "--- a/wide.txt\n"
+            "+++ b/wide.txt\n"
+            "@@ -1,2 +1,2 @@\n"
+            f"-{long_text}\n"
+            f"+{long_text}_modified\n"
+            " trailing context\n"
+        )
+        result_annotated = _format_annotated(diff, ["wide.txt"])
+        assert f"{long_text}_modified" in result_annotated
+
+        result_compact = _format_compact(diff, ["wide.txt"])
+        assert f"{long_text}_modified" in result_compact
+
+    def test_empty_diff_no_hunks(self):
+        """Diff with file header but no hunks should not crash."""
+        diff = (
+            "diff --git a/empty.py b/empty.py\n"
+            "index abc..def 100644\n"
+            "--- a/empty.py\n"
+            "+++ b/empty.py\n"
+        )
+        result_annotated = _format_annotated(diff, ["empty.py"])
+        assert isinstance(result_annotated, str)
+
+        result_compact = _format_compact(diff, ["empty.py"])
+        assert isinstance(result_compact, str)
