@@ -53,6 +53,7 @@ class DiffChunkTools:
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
         exclude_patterns: Optional[str] = None,
+        context_lines: Optional[int] = None,
     ) -> DiffSession:
         """Internal method to load and parse a diff file."""
         # Validate inputs
@@ -65,6 +66,10 @@ class DiffChunkTools:
 
         if not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
             raise ValueError("max_chunk_lines must be a positive integer")
+
+        if context_lines is not None:
+            if not isinstance(context_lines, int) or context_lines < 0:
+                raise ValueError("context_lines must be a non-negative integer or None")
 
         # Canonicalize path
         resolved_file_path = os.path.realpath(os.path.expanduser(absolute_file_path))
@@ -105,6 +110,7 @@ class DiffChunkTools:
             skip_generated=skip_generated,
             include_patterns=include_list,
             exclude_patterns=exclude_list,
+            context_lines=context_lines,
         )
         elapsed = time.monotonic() - start
         logger.info(
@@ -131,6 +137,7 @@ class DiffChunkTools:
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
         exclude_patterns: Optional[str] = None,
+        context_lines: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Load and parse a diff file into chunks."""
         session = self._load_diff_internal(
@@ -140,6 +147,7 @@ class DiffChunkTools:
             skip_generated=skip_generated,
             include_patterns=include_patterns,
             exclude_patterns=exclude_patterns,
+            context_lines=context_lines,
         )
 
         # Return overview

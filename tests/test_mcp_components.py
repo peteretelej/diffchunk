@@ -879,3 +879,255 @@ class TestFilesExcludedCount:
                 assert not file_path.endswith(".json"), (
                     f"Excluded file '{file_path}' found in list_chunks output"
                 )
+
+
+class TestContextLinesParameter:
+    """Tests for the context_lines parameter on reduce_context and load_diff."""
+
+    def _make_diff(
+        self,
+        context_before: int = 5,
+        context_after: int = 5,
+        old_start: int = 10,
+        new_start: int = 10,
+        func_context: str = "",
+    ) -> str:
+        """Build a simple single-hunk diff with configurable context."""
+        ctx_before = [f" context_before_{i}" for i in range(context_before)]
+        ctx_after = [f" context_after_{i}" for i in range(context_after)]
+        changes = ["+added_line", "-removed_line"]
+
+        old_count = context_before + context_after + 1  # context + removed
+        new_count = context_before + context_after + 1  # context + added
+
+        trailing = f" {func_context}" if func_context else ""
+        header = f"@@ -{old_start},{old_count} +{new_start},{new_count} @@{trailing}"
+
+        lines = [
+            "diff --git a/example.py b/example.py",
+            "index abc1234..def5678 100644",
+            "--- a/example.py",
+            "+++ b/example.py",
+            header,
+            *ctx_before,
+            *changes,
+            *ctx_after,
+        ]
+        return "\n".join(lines)
+
+    def test_reduce_context_basic(self):
+        """Diff with 5+ context lines reduced to context_lines=1."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(context_before=5, context_after=5)
+        result = DiffParser.reduce_context(diff, 1)
+
+        # Should contain only 1 context line before and 1 after the change
+        result_lines = result.split("\n")
+        # Find content lines (not headers)
+        content_lines = []
+        in_hunk = False
+        for line in result_lines:
+            if line.startswith("@@"):
+                in_hunk = True
+                continue
+            if in_hunk:
+                content_lines.append(line)
+
+        # Count context lines
+        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+        assert len(ctx_lines) == 2  # 1 before + 1 after
+
+        # Change lines should still be present
+        assert any("+added_line" in l for l in content_lines)
+        assert any("-removed_line" in l for l in content_lines)
+
+    def test_reduce_context_recalculated_headers(self):
+        """Hunk headers are recalculated after context reduction."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(
+            context_before=5, context_after=5, old_start=10, new_start=10
+        )
+        result = DiffParser.reduce_context(diff, 1)
+
+        import re
+
+        hunk_re = re.compile(r"^@@ -(\d+),(\d+) \+(\d+),(\d+) @@")
+        result_lines = result.split("\n")
+        hunk_headers = [l for l in result_lines if hunk_re.match(l)]
+        assert len(hunk_headers) >= 1
+
+        m = hunk_re.match(hunk_headers[0])
+        assert m is not None
+        old_start = int(m.group(1))
+        old_count = int(m.group(2))
+        new_start = int(m.group(3))
+        new_count = int(m.group(4))
+
+        # With 1 context line kept before the change, old_start should be
+        # original start + (5 - 1) = 14 (skipped 4 context lines)
+        assert old_start == 14
+        assert new_start == 14
+
+        # old_count = 1 context before + 1 removed + 1 context after = 3
+        assert old_count == 3
+        # new_count = 1 context before + 1 added + 1 context after = 3
+        assert new_count == 3
+
+    def test_reduce_context_none_keeps_all(self):
+        """context_lines=None (not calling reduce_context) keeps all context."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(context_before=5, context_after=5)
+        # When context_lines is None, reduce_context is not called,
+        # so we verify by calling with a large value that keeps everything
+        result = DiffParser.reduce_context(diff, 100)
+
+        # All context lines should be preserved
+        result_lines = result.split("\n")
+        ctx_lines = [l for l in result_lines if l.startswith(" context_")]
+        assert len(ctx_lines) == 10  # 5 before + 5 after
+
+    def test_reduce_context_zero_keeps_only_changes(self):
+        """context_lines=0 keeps only added/removed lines, no context."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(context_before=5, context_after=5)
+        result = DiffParser.reduce_context(diff, 0)
+
+        result_lines = result.split("\n")
+        # Find content lines in hunks
+        content_lines = []
+        in_hunk = False
+        for line in result_lines:
+            if line.startswith("@@"):
+                in_hunk = True
+                continue
+            if in_hunk:
+                content_lines.append(line)
+
+        # No context lines
+        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+        assert len(ctx_lines) == 0
+
+        # Changes are still present
+        assert any("+added_line" in l for l in content_lines)
+        assert any("-removed_line" in l for l in content_lines)
+
+    def test_reduce_context_overlapping_windows(self):
+        """Two nearby changes with overlapping context windows preserve shared context."""
+        from src.parser import DiffParser
+
+        # Two changes separated by 2 context lines, with context_lines=2
+        # The context between them overlaps and should all be kept
+        diff = (
+            "diff --git a/example.py b/example.py\n"
+            "index abc..def 100644\n"
+            "--- a/example.py\n"
+            "+++ b/example.py\n"
+            "@@ -1,12 +1,14 @@\n"
+            " far_before_1\n"
+            " far_before_2\n"
+            " far_before_3\n"
+            " near_before\n"
+            "+first_add\n"
+            " between_1\n"
+            " between_2\n"
+            "-second_remove\n"
+            "+second_add\n"
+            " near_after\n"
+            " far_after_1\n"
+            " far_after_2\n"
+            " far_after_3\n"
+        )
+        result = DiffParser.reduce_context(diff, 2)
+
+        result_lines = result.split("\n")
+        content_lines = []
+        in_hunk = False
+        for line in result_lines:
+            if line.startswith("@@"):
+                in_hunk = True
+                continue
+            if in_hunk:
+                content_lines.append(line)
+
+        # With context_lines=2:
+        # - first_add needs 2 before (far_before_3, near_before) and 2 after (between_1, between_2)
+        # - second_remove/second_add needs 2 before (between_1, between_2) and 2 after (near_after, far_after_1)
+        # The between_1 and between_2 lines are shared context
+        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+
+        # Should keep: far_before_3, near_before, between_1, between_2, near_after, far_after_1
+        assert len(ctx_lines) == 6
+
+        # far_before_1 and far_before_2 should be dropped
+        assert not any("far_before_1" in l for l in content_lines)
+        assert not any("far_before_2" in l for l in content_lines)
+
+        # far_after_2 and far_after_3 should be dropped
+        assert not any("far_after_2" in l for l in content_lines)
+        assert not any("far_after_3" in l for l in content_lines)
+
+    def test_context_lines_negative_raises_valueerror(self):
+        """Negative context_lines raises ValueError via tools validation."""
+        tools = DiffChunkTools()
+        with pytest.raises(ValueError, match="non-negative integer"):
+            tools.load_diff("/some/file.diff", context_lines=-1)
+
+    def test_context_lines_via_load_diff(self):
+        """context_lines works end-to-end through load_diff with real diff data."""
+        test_data_dir = Path(__file__).parent / "test_data"
+        react_diff = test_data_dir / "react_18.0_to_18.3.diff"
+        if not react_diff.exists():
+            pytest.skip("React test diff not found")
+
+        tools = DiffChunkTools()
+
+        # Load with all context (default)
+        result_all = tools.load_diff(str(react_diff), max_chunk_lines=5000)
+
+        # Load with reduced context
+        result_reduced = tools.load_diff(
+            str(react_diff), max_chunk_lines=5000, context_lines=1
+        )
+
+        # Reduced context should have fewer or equal total lines
+        assert result_reduced["total_lines"] <= result_all["total_lines"]
+
+        # Both should still have files and chunks
+        assert result_reduced["files"] > 0
+        assert result_reduced["chunks"] > 0
+
+    def test_reduce_context_preserves_file_header(self):
+        """File header lines are preserved unchanged after context reduction."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(context_before=5, context_after=5)
+        result = DiffParser.reduce_context(diff, 1)
+
+        assert result.startswith("diff --git a/example.py b/example.py")
+        assert "--- a/example.py" in result
+        assert "+++ b/example.py" in result
+        assert "index abc1234..def5678 100644" in result
+
+    def test_reduce_context_preserves_function_context(self):
+        """Trailing function context on @@ headers is preserved."""
+        from src.parser import DiffParser
+
+        diff = self._make_diff(
+            context_before=5, context_after=5, func_context="def my_function"
+        )
+        result = DiffParser.reduce_context(diff, 1)
+
+        import re
+
+        hunk_re = re.compile(r"^@@.*@@(.*)$")
+        for line in result.split("\n"):
+            m = hunk_re.match(line)
+            if m:
+                assert "def my_function" in m.group(1)
+                break
+        else:
+            pytest.fail("No hunk header found in reduced output")

@@ -51,6 +51,12 @@ def load_diff(
         Optional[str],
         Field(description="Comma-separated glob patterns for files to exclude"),
     ] = None,
+    context_lines: Annotated[
+        Optional[int],
+        Field(
+            description="Number of context lines around each change (default: keep all from diff file)"
+        ),
+    ] = None,
 ) -> str:
     """Parse and load a diff file with custom chunking settings. Use this tool ONLY when you need non-default settings (custom chunk sizes, filtering patterns). Otherwise, use list_chunks, get_chunk, or find_chunks_for_files which auto-load with optimal defaults. CRITICAL: You must use an absolute directory path - relative paths will fail. The diff file will be too large for direct reading, so you MUST use diffchunk tools for navigation. When using tracking documents for analysis, remember to clean up tracking state before presenting final results. The response includes a `files_excluded` count showing how many files were removed by exclude_patterns."""
     logger.info("load_diff: %s", os.path.basename(absolute_file_path))
@@ -62,6 +68,7 @@ def load_diff(
         skip_generated=skip_generated,
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
+        context_lines=context_lines,
     )
     return json.dumps(result, indent=2)
 
