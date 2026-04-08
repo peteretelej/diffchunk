@@ -316,3 +316,53 @@ class TestMCPComponents:
 
         assert get_time < 1.0, f"Get chunk took too long: {get_time}s"
         assert len(content) > 0
+
+    def test_format_raw_returns_identical_output(self, react_diff_file):
+        """Test that format='raw' returns identical output to default (no format param)."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        # Get chunk with default behavior (no format param)
+        default_output = tools.get_chunk(react_diff_file, 1, include_context=True)
+
+        # Get chunk with explicit format="raw"
+        raw_output = tools.get_chunk(
+            react_diff_file, 1, include_context=True, format="raw"
+        )
+
+        assert default_output == raw_output
+
+        # Also verify without context header
+        default_no_ctx = tools.get_chunk(react_diff_file, 1, include_context=False)
+        raw_no_ctx = tools.get_chunk(
+            react_diff_file, 1, include_context=False, format="raw"
+        )
+
+        assert default_no_ctx == raw_no_ctx
+
+    def test_format_invalid_raises_valueerror(self, react_diff_file):
+        """Test that an invalid format string raises ValueError with helpful message."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        with pytest.raises(ValueError, match="Invalid format 'invalid'") as exc_info:
+            tools.get_chunk(react_diff_file, 1, format="invalid")
+
+        error_msg = str(exc_info.value)
+        assert "'raw'" in error_msg
+        assert "'annotated'" in error_msg
+        assert "'compact'" in error_msg
+
+    def test_format_annotated_and_compact_accepted(self, react_diff_file):
+        """Test that annotated and compact format values are accepted without error."""
+        tools = DiffChunkTools()
+        tools.load_diff(react_diff_file, max_chunk_lines=3000)
+
+        # These should not raise - they are valid modes (placeholders for now)
+        annotated = tools.get_chunk(react_diff_file, 1, format="annotated")
+        assert isinstance(annotated, str)
+        assert len(annotated) > 0
+
+        compact = tools.get_chunk(react_diff_file, 1, format="compact")
+        assert isinstance(compact, str)
+        assert len(compact) > 0

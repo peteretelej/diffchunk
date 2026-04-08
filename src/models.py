@@ -2,7 +2,16 @@
 
 import fnmatch
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Dict, List
+
+
+class FormatMode(str, Enum):
+    """Output format modes for chunk content."""
+
+    RAW = "raw"
+    ANNOTATED = "annotated"
+    COMPACT = "compact"
 
 
 @dataclass

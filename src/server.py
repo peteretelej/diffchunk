@@ -90,6 +90,12 @@ def get_chunk(
     include_context: Annotated[
         bool, Field(description="Include chunk header with metadata")
     ] = True,
+    format: Annotated[
+        str,
+        Field(
+            description="Output format: 'raw' (default, standard diff), 'annotated' (line numbers, new/old hunk separation), 'compact' (line numbers, new hunks only)"
+        ),
+    ] = "raw",
 ) -> str:
     """Retrieve the actual content of a specific numbered chunk from a diff file. Auto-loads the diff file if not already loaded. Use this for systematic analysis of changes chunk-by-chunk, or to examine specific chunks identified via list_chunks or find_chunks_for_files. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT read diff files directly - they exceed LLM context windows. This tool provides manageable portions of large diffs. Track your progress through chunks when doing comprehensive analysis and clean up tracking documents before final results."""
     logger.info(
@@ -100,6 +106,7 @@ def get_chunk(
         absolute_file_path=absolute_file_path,
         chunk_number=chunk_number,
         include_context=include_context,
+        format=format,
     )
     return result
 

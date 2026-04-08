@@ -6,8 +6,9 @@ import logging
 import os
 import time
 from typing import Dict, Any, List, Optional
-from .models import DiffSession
+from .models import DiffSession, FormatMode
 from .chunker import DiffChunker
+from .formatter import format_chunk
 
 logger = logging.getLogger("diffchunk")
 
@@ -170,7 +171,11 @@ class DiffChunkTools:
         ]
 
     def get_chunk(
-        self, absolute_file_path: str, chunk_number: int, include_context: bool = True
+        self,
+        absolute_file_path: str,
+        chunk_number: int,
+        include_context: bool = True,
+        format: str = "raw",
     ) -> str:
         """Get the content of a specific chunk."""
         file_key = self._ensure_loaded(absolute_file_path)
@@ -179,6 +184,12 @@ class DiffChunkTools:
         if not isinstance(chunk_number, int) or chunk_number <= 0:
             raise ValueError("chunk_number must be a positive integer")
 
+        try:
+            mode = FormatMode(format)
+        except ValueError:
+            valid = ", ".join(f"'{m.value}'" for m in FormatMode)
+            raise ValueError(f"Invalid format '{format}'. Must be one of: {valid}")
+
         chunk = session.get_chunk(chunk_number)
         if not chunk:
             total_chunks = len(session.chunks)
@@ -186,14 +197,18 @@ class DiffChunkTools:
                 f"Chunk {chunk_number} does not exist. The diff has {total_chunks} chunks (1-{total_chunks}). Use list_chunks to see what each chunk contains."
             )
 
+        content = chunk.content
+        if mode != FormatMode.RAW:
+            content = format_chunk(content, mode, chunk.files)
+
         if include_context:
             header = f"=== Chunk {chunk.number} of {len(session.chunks)} ===\n"
             header += f"Files: {', '.join(chunk.files)}\n"
             header += f"Lines: {chunk.line_count}\n"
             header += "=" * 50 + "\n"
-            return header + chunk.content
+            return header + content
         else:
-            return chunk.content
+            return content
 
     def find_chunks_for_files(self, absolute_file_path: str, pattern: str) -> List[int]:
         """Find chunks containing files matching the given pattern."""
