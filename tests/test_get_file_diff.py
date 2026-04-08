@@ -165,7 +165,7 @@ class TestFileDetailsInListChunks:
     def test_list_chunks_includes_file_details(self, tools, multi_file_diff_path):
         """list_chunks includes file_details with per-file line counts."""
         tools.load_diff(multi_file_diff_path)
-        chunks = tools.list_chunks(multi_file_diff_path)
+        chunks = tools.list_chunks(multi_file_diff_path)["chunks"]
 
         for chunk in chunks:
             assert "file_details" in chunk
@@ -182,7 +182,7 @@ class TestFileDetailsInListChunks:
     def test_list_chunks_still_has_files_list(self, tools, multi_file_diff_path):
         """list_chunks still includes files as flat string list (backward compat)."""
         tools.load_diff(multi_file_diff_path)
-        chunks = tools.list_chunks(multi_file_diff_path)
+        chunks = tools.list_chunks(multi_file_diff_path)["chunks"]
 
         for chunk in chunks:
             assert "files" in chunk
@@ -193,7 +193,7 @@ class TestFileDetailsInListChunks:
     def test_file_details_paths_match_files_list(self, tools, multi_file_diff_path):
         """file_details paths should correspond to the files in the chunk."""
         tools.load_diff(multi_file_diff_path)
-        chunks = tools.list_chunks(multi_file_diff_path)
+        chunks = tools.list_chunks(multi_file_diff_path)["chunks"]
 
         for chunk in chunks:
             detail_paths = {d["path"] for d in chunk["file_details"]}
@@ -204,7 +204,7 @@ class TestFileDetailsInListChunks:
     def test_file_details_line_counts_sum(self, tools, multi_file_diff_path):
         """Sum of per-file line counts should approximate the chunk total."""
         tools.load_diff(multi_file_diff_path)
-        chunks = tools.list_chunks(multi_file_diff_path)
+        chunks = tools.list_chunks(multi_file_diff_path)["chunks"]
 
         for chunk in chunks:
             detail_total = sum(d["lines"] for d in chunk["file_details"])
@@ -230,7 +230,7 @@ class TestFileDetailsWithRealData:
             pytest.skip("React test diff not found")
 
         tools.load_diff(str(diff_file), max_chunk_lines=2000)
-        chunks = tools.list_chunks(str(diff_file))
+        chunks = tools.list_chunks(str(diff_file))["chunks"]
 
         assert len(chunks) > 0
         for chunk in chunks:
@@ -247,7 +247,7 @@ class TestFileDetailsWithRealData:
 
         # Use small chunk size to force splits
         tools.load_diff(str(diff_file), max_chunk_lines=500)
-        chunks = tools.list_chunks(str(diff_file))
+        chunks = tools.list_chunks(str(diff_file))["chunks"]
 
         sub_chunks = [c for c in chunks if c["sub_chunk_index"] is not None]
         if sub_chunks:

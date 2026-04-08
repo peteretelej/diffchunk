@@ -176,13 +176,13 @@ class TestFileSystemEdgeCases:
         """Test loading new diff overwrites previous session."""
         # Load first diff
         result1 = tools.load_diff(react_diff_file, max_chunk_lines=2000)
-        chunks1 = tools.list_chunks(react_diff_file)
+        chunks1 = tools.list_chunks(react_diff_file)["chunks"]
 
         # Load second diff (if available)
         go_diff = test_data_dir / "go_version_upgrade_1.22_to_1.23.diff"
         if go_diff.exists():
             result2 = tools.load_diff(str(go_diff), max_chunk_lines=3000)
-            chunks2 = tools.list_chunks(str(go_diff))
+            chunks2 = tools.list_chunks(str(go_diff))["chunks"]
 
             # Should be different sessions
             assert result1["file_path"] != result2["file_path"]

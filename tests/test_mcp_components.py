@@ -44,7 +44,11 @@ class TestMCPComponents:
         total_chunks = result["chunks"]
 
         # 2. List chunks (auto-loads if needed)
-        chunks = tools.list_chunks(react_diff_file)
+        result = tools.list_chunks(react_diff_file)
+        assert "chunks" in result
+        assert "total_token_count" in result
+        assert isinstance(result["total_token_count"], int)
+        chunks = result["chunks"]
         assert len(chunks) == total_chunks
         assert all("chunk" in chunk for chunk in chunks)
         assert all("files" in chunk for chunk in chunks)
@@ -94,7 +98,8 @@ class TestMCPComponents:
         tools = DiffChunkTools()
 
         # Test that tools auto-load when called without explicit load_diff
-        chunks = tools.list_chunks(react_diff_file)
+        result = tools.list_chunks(react_diff_file)
+        chunks = result["chunks"]
         assert len(chunks) > 0
 
         # Should work for other tools too
@@ -165,8 +170,11 @@ class TestMCPComponents:
         assert go_result["file_path"] == go_diff_file
 
         # Should be able to work with both files independently
-        react_chunks = tools.list_chunks(react_diff_file)
-        go_chunks = tools.list_chunks(go_diff_file)
+        react_result_chunks = tools.list_chunks(react_diff_file)
+        go_result_chunks = tools.list_chunks(go_diff_file)
+
+        react_chunks = react_result_chunks["chunks"]
+        go_chunks = go_result_chunks["chunks"]
 
         assert len(react_chunks) == react_result["chunks"]
         assert len(go_chunks) == go_result["chunks"]
@@ -252,7 +260,7 @@ class TestMCPComponents:
         tools = DiffChunkTools()
         tools.load_diff(react_diff_file, max_chunk_lines=3000)
 
-        chunks = tools.list_chunks(react_diff_file)
+        chunks = tools.list_chunks(react_diff_file)["chunks"]
 
         for i, chunk_info in enumerate(chunks, 1):
             # Test chunk info structure
@@ -304,11 +312,11 @@ class TestMCPComponents:
 
         # Measure navigation time
         start_time = time.time()
-        chunks = tools.list_chunks(go_diff_file)
+        list_result = tools.list_chunks(go_diff_file)
         list_time = time.time() - start_time
 
         assert list_time < 2.0, f"List chunks took too long: {list_time}s"
-        assert len(chunks) == result["chunks"]
+        assert len(list_result["chunks"]) == result["chunks"]
 
         # Measure chunk retrieval time
         start_time = time.time()
@@ -873,8 +881,8 @@ class TestFilesExcludedCount:
         assert result["files_excluded"] > 0
 
         # Verify no .json files appear in chunk listings
-        chunks = tools.list_chunks(react_diff_file)
-        for chunk_info in chunks:
+        list_result = tools.list_chunks(react_diff_file)
+        for chunk_info in list_result["chunks"]:
             for file_path in chunk_info["files"]:
                 assert not file_path.endswith(".json"), (
                     f"Excluded file '{file_path}' found in list_chunks output"
@@ -1245,8 +1253,8 @@ class TestIntegrationFormatModes:
         assert "## File:" in annotated
 
         # No .json files should appear in chunk listings
-        chunks = tools.list_chunks(react_diff_file)
-        for chunk_info in chunks:
+        list_result = tools.list_chunks(react_diff_file)
+        for chunk_info in list_result["chunks"]:
             for file_path in chunk_info["files"]:
                 assert not file_path.endswith(".json")
 

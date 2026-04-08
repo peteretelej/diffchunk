@@ -33,24 +33,28 @@ def load_diff(
 ### list_chunks (Auto-loading)
 
 ```python
-def list_chunks(absolute_file_path: str) -> List[Dict[str, Any]]
+def list_chunks(absolute_file_path: str) -> Dict[str, Any]
 ```
 
-**Returns:** Array of chunk metadata with files, line counts, summaries, and `file_details` (per-file line counts)
+**Returns:** Dictionary with `chunks` (array of chunk metadata with files, line counts, token counts, summaries, and `file_details`) and `total_token_count` (sum of all chunk token counts)
 
 ```json
-[
-  {
-    "chunk": 1,
-    "files": ["src/main.py", "src/utils.py"],
-    "file_details": [
-      {"path": "src/main.py", "lines": 120},
-      {"path": "src/utils.py", "lines": 45}
-    ],
-    "lines": 165,
-    "summary": "2 files, 165 lines"
-  }
-]
+{
+  "chunks": [
+    {
+      "chunk": 1,
+      "files": ["src/main.py", "src/utils.py"],
+      "file_details": [
+        {"path": "src/main.py", "lines": 120},
+        {"path": "src/utils.py", "lines": 45}
+      ],
+      "lines": 165,
+      "token_count": 412,
+      "summary": "2 files, 165 lines"
+    }
+  ],
+  "total_token_count": 412
+}
 ```
 
 ### get_chunk (Auto-loading)
@@ -113,6 +117,7 @@ class ChunkInfo:
     files: List[str]
     line_count: int
     summary: str
+    token_count: int = 0                                        # Estimated token count (len(content) // 4)
     parent_file: str | None = None
     sub_chunk_index: int | None = None
     file_details: List[Dict[str, Any]] = field(default_factory=list)  # [{"path": str, "lines": int}]

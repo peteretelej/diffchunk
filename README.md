@@ -103,8 +103,9 @@ This lets your AI assistant handle massive diffs that would normally crash other
 
 ```python
 list_chunks("/tmp/changes.diff")
-# → 5 chunks across 12 files, 3,847 total lines
-# Each chunk includes file_details with per-file line counts
+# -> 5 chunks across 12 files, 3,847 total lines, ~15,420 tokens
+# Each chunk includes token_count and file_details with per-file line counts
+# Response includes total_token_count for context-budget planning
 ```
 
 **Target specific files:**
