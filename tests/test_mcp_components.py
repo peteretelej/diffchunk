@@ -4,6 +4,7 @@ from pathlib import Path
 
 import pytest
 
+from src.formatter import _format_annotated
 from src.tools import DiffChunkTools
 
 
@@ -366,3 +367,236 @@ class TestMCPComponents:
         compact = tools.get_chunk(react_diff_file, 1, format="compact")
         assert isinstance(compact, str)
         assert len(compact) > 0
+
+
+class TestAnnotatedFormat:
+    """Tests for the annotated format output."""
+
+    def test_multi_hunk_multi_file_annotated(self):
+        """Multi-hunk, multi-file diff produces correct annotated output."""
+        diff = (
+            "diff --git a/src/auth.py b/src/auth.py\n"
+            "index abc1234..def5678 100644\n"
+            "--- a/src/auth.py\n"
+            "+++ b/src/auth.py\n"
+            "@@ -10,4 +10,5 @@ def authenticate\n"
+            " unchanged\n"
+            " also unchanged\n"
+            "+new line\n"
+            " trailing ctx\n"
+            "@@ -30,3 +31,3 @@ def logout\n"
+            " ctx\n"
+            "-old removed\n"
+            "+new replaced\n"
+            " ctx end\n"
+            "diff --git a/src/utils.py b/src/utils.py\n"
+            "index 1111111..2222222 100644\n"
+            "--- a/src/utils.py\n"
+            "+++ b/src/utils.py\n"
+            "@@ -1,3 +1,4 @@\n"
+            " first\n"
+            "+inserted\n"
+            " second\n"
+            " third\n"
+        )
+        result = _format_annotated(diff, ["src/auth.py", "src/utils.py"])
+
+        # File headers
+        assert "## File: 'src/auth.py'" in result
+        assert "## File: 'src/utils.py'" in result
+
+        # Hunk markers
+        assert "__new hunk__" in result
+        assert "__old hunk__" in result
+
+        # Function context on hunk headers
+        assert "__new hunk__ | def authenticate" in result
+        assert "__old hunk__ | def logout" in result
+
+        # Line numbers on __new hunk__ lines
+        lines = result.split("\n")
+
+        # Find a __new hunk__ added line - should have line number and + prefix
+        new_hunk_added = [l for l in lines if "+" in l and "new line" in l]
+        assert len(new_hunk_added) >= 1
+        assert new_hunk_added[0].strip().startswith("12")  # line 10+2 context = 12
+
+        # Find __old hunk__ removed line - should have - prefix, no line number
+        old_hunk_removed = [l for l in lines if "-" in l and "old removed" in l]
+        assert len(old_hunk_removed) >= 1
+        # Old hunk lines have no numeric line numbers
+        stripped = old_hunk_removed[0].strip()
+        assert stripped.startswith("-")
+
+    def test_new_file_no_old_hunks(self):
+        """New file should produce __new hunk__ only, no __old hunk__."""
+        diff = (
+            "diff --git a/newfile.py b/newfile.py\n"
+            "new file mode 100644\n"
+            "index 0000000..abcdef1\n"
+            "--- /dev/null\n"
+            "+++ b/newfile.py\n"
+            "@@ -0,0 +1,3 @@\n"
+            "+line one\n"
+            "+line two\n"
+            "+line three\n"
+        )
+        result = _format_annotated(diff, ["newfile.py"])
+
+        assert "## File: 'newfile.py'" in result
+        assert "__new hunk__" in result
+        assert "__old hunk__" not in result
+
+        # All lines should be added with line numbers
+        lines = result.split("\n")
+        added_lines = [l for l in lines if "+" in l and "line" in l]
+        assert len(added_lines) == 3
+
+    def test_deleted_file_no_new_hunks(self):
+        """Deleted file should produce __old hunk__ only, no __new hunk__."""
+        diff = (
+            "diff --git a/removed.py b/removed.py\n"
+            "deleted file mode 100644\n"
+            "index abcdef1..0000000\n"
+            "--- a/removed.py\n"
+            "+++ /dev/null\n"
+            "@@ -1,3 +0,0 @@\n"
+            "-line one\n"
+            "-line two\n"
+            "-line three\n"
+        )
+        result = _format_annotated(diff, ["removed.py"])
+
+        assert "## File: 'removed.py'" in result
+        assert "__old hunk__" in result
+        assert "__new hunk__" not in result
+
+        # All lines should be removed with - prefix
+        lines = result.split("\n")
+        removed_lines = [l for l in lines if "-" in l and "line" in l]
+        assert len(removed_lines) == 3
+
+    def test_hunk_no_function_context(self):
+        """Hunk with bare @@ (no trailing function) omits the | part."""
+        diff = (
+            "diff --git a/plain.txt b/plain.txt\n"
+            "index abc..def 100644\n"
+            "--- a/plain.txt\n"
+            "+++ b/plain.txt\n"
+            "@@ -1,3 +1,4 @@\n"
+            " existing\n"
+            "+added\n"
+            " more\n"
+            " end\n"
+        )
+        result = _format_annotated(diff, ["plain.txt"])
+
+        # Should have __new hunk__ without | part
+        lines = result.split("\n")
+        hunk_headers = [l for l in lines if l.startswith("__new hunk__")]
+        assert len(hunk_headers) == 1
+        assert "|" not in hunk_headers[0]
+
+    def test_multiple_hunks_single_file(self):
+        """Multiple hunks in a single file each get their own hunk markers."""
+        diff = (
+            "diff --git a/multi.py b/multi.py\n"
+            "index abc..def 100644\n"
+            "--- a/multi.py\n"
+            "+++ b/multi.py\n"
+            "@@ -5,3 +5,4 @@ def first_func\n"
+            " ctx1\n"
+            "+add1\n"
+            " ctx2\n"
+            " ctx3\n"
+            "@@ -20,3 +21,4 @@ def second_func\n"
+            " ctx4\n"
+            "+add2\n"
+            " ctx5\n"
+            " ctx6\n"
+        )
+        result = _format_annotated(diff, ["multi.py"])
+
+        # Should have exactly one file header
+        assert result.count("## File: 'multi.py'") == 1
+
+        # Should have two __new hunk__ sections
+        lines = result.split("\n")
+        new_hunk_headers = [l for l in lines if l.startswith("__new hunk__")]
+        assert len(new_hunk_headers) == 2
+
+        # Both should have function context
+        assert "__new hunk__ | def first_func" in result
+        assert "__new hunk__ | def second_func" in result
+
+        # Verify line numbers are correct for each hunk
+        # First hunk: starts at line 5, add1 should be at line 6
+        add1_lines = [l for l in lines if "+add1" in l]
+        assert any("6" in l for l in add1_lines)
+
+        # Second hunk: starts at line 21, add2 should be at line 22
+        add2_lines = [l for l in lines if "+add2" in l]
+        assert any("22" in l for l in add2_lines)
+
+    def test_annotated_via_tools_get_chunk(self):
+        """Annotated format works end-to-end via DiffChunkTools.get_chunk."""
+        test_data_dir = Path(__file__).parent / "test_data"
+        react_diff = test_data_dir / "react_18.0_to_18.3.diff"
+        if not react_diff.exists():
+            pytest.skip("React test diff not found")
+
+        tools = DiffChunkTools()
+        tools.load_diff(str(react_diff), max_chunk_lines=3000)
+
+        annotated = tools.get_chunk(str(react_diff), 1, format="annotated", include_context=False)
+
+        # Should contain structural elements
+        assert "## File:" in annotated
+        assert "__new hunk__" in annotated
+
+    def test_annotated_line_numbers_accuracy(self):
+        """Verify line numbers are accurate for a known input."""
+        diff = (
+            "diff --git a/example.py b/example.py\n"
+            "index abc..def 100644\n"
+            "--- a/example.py\n"
+            "+++ b/example.py\n"
+            "@@ -45,5 +47,7 @@ def authenticate\n"
+            " unchanged line\n"
+            " unchanged line\n"
+            "+new line added\n"
+            "+another new line\n"
+            " unchanged line\n"
+            "-old line removed\n"
+            " last line\n"
+        )
+        result = _format_annotated(diff, ["example.py"])
+        lines = result.split("\n")
+
+        # __new hunk__: context starts at new_line=47
+        # Line 47: " unchanged line"
+        # Line 48: " unchanged line"
+        # Line 49: "+new line added"
+        # Line 50: "+another new line"
+        # Line 51: " unchanged line"
+        # skip removed
+        # Line 52: " last line"
+        new_hunk_lines = []
+        in_new = False
+        for l in lines:
+            if l.startswith("__new hunk__"):
+                in_new = True
+                continue
+            if l.startswith("__old hunk__") or l.startswith("## File:"):
+                in_new = False
+                continue
+            if in_new and l.strip():
+                new_hunk_lines.append(l)
+
+        assert len(new_hunk_lines) == 6
+        assert new_hunk_lines[0].strip().startswith("47")
+        assert new_hunk_lines[1].strip().startswith("48")
+        assert "49" in new_hunk_lines[2] and "+new line added" in new_hunk_lines[2]
+        assert "50" in new_hunk_lines[3] and "+another new line" in new_hunk_lines[3]
+        assert new_hunk_lines[4].strip().startswith("51")
+        assert new_hunk_lines[5].strip().startswith("52")
