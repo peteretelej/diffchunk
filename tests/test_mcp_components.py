@@ -556,7 +556,9 @@ class TestAnnotatedFormat:
         tools = DiffChunkTools()
         tools.load_diff(str(react_diff), max_chunk_lines=3000)
 
-        annotated = tools.get_chunk(str(react_diff), 1, format="annotated", include_context=False)
+        annotated = tools.get_chunk(
+            str(react_diff), 1, format="annotated", include_context=False
+        )
 
         # Should contain structural elements
         assert "## File:" in annotated
@@ -632,9 +634,9 @@ class TestCompactFormat:
         # Split into lines and check content lines (skip headers/markers)
         lines = result.split("\n")
         content_lines = [
-            ln for ln in lines
-            if not ln.startswith("## File:") and not ln.startswith("__")
-            and ln.strip()
+            ln
+            for ln in lines
+            if not ln.startswith("## File:") and not ln.startswith("__") and ln.strip()
         ]
         # No content line should have a - prefix (removed line format is "    -text")
         for line in content_lines:
@@ -753,9 +755,9 @@ class TestCompactFormat:
         # Verify no removed lines in output content
         lines = result.split("\n")
         content_lines = [
-            ln for ln in lines
-            if not ln.startswith("## File:") and not ln.startswith("__")
-            and ln.strip()
+            ln
+            for ln in lines
+            if not ln.startswith("## File:") and not ln.startswith("__") and ln.strip()
         ]
         for line in content_lines:
             stripped = line.strip()
@@ -1180,9 +1182,7 @@ class TestIntegrationFormatModes:
         tools.load_diff(react_diff_file, max_chunk_lines=3000)
 
         default = tools.get_chunk(react_diff_file, 1, include_context=False)
-        raw = tools.get_chunk(
-            react_diff_file, 1, include_context=False, format="raw"
-        )
+        raw = tools.get_chunk(react_diff_file, 1, include_context=False, format="raw")
         assert default == raw
 
     def test_annotated_has_structural_elements(self, react_diff_file):
