@@ -6,10 +6,10 @@ set -e
 echo "Running pre-push checks..."
 
 echo "Checking ruff lint..."
-uv run ruff check src/
+uv run ruff check .
 
 echo "Checking code formatting..."
-uv run ruff format --check src/
+uv run ruff format --check .
 
 echo "Running tests..."
 uv run pytest tests/ -x -q

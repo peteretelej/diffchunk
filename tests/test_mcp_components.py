@@ -425,12 +425,12 @@ class TestAnnotatedFormat:
         lines = result.split("\n")
 
         # Find a __new hunk__ added line - should have line number and + prefix
-        new_hunk_added = [l for l in lines if "+" in l and "new line" in l]
+        new_hunk_added = [ln for ln in lines if "+" in ln and "new line" in ln]
         assert len(new_hunk_added) >= 1
         assert new_hunk_added[0].strip().startswith("12")  # line 10+2 context = 12
 
         # Find __old hunk__ removed line - should have - prefix, no line number
-        old_hunk_removed = [l for l in lines if "-" in l and "old removed" in l]
+        old_hunk_removed = [ln for ln in lines if "-" in ln and "old removed" in ln]
         assert len(old_hunk_removed) >= 1
         # Old hunk lines have no numeric line numbers
         stripped = old_hunk_removed[0].strip()
@@ -457,7 +457,7 @@ class TestAnnotatedFormat:
 
         # All lines should be added with line numbers
         lines = result.split("\n")
-        added_lines = [l for l in lines if "+" in l and "line" in l]
+        added_lines = [ln for ln in lines if "+" in ln and "line" in ln]
         assert len(added_lines) == 3
 
     def test_deleted_file_no_new_hunks(self):
@@ -481,7 +481,7 @@ class TestAnnotatedFormat:
 
         # All lines should be removed with - prefix
         lines = result.split("\n")
-        removed_lines = [l for l in lines if "-" in l and "line" in l]
+        removed_lines = [ln for ln in lines if "-" in ln and "line" in ln]
         assert len(removed_lines) == 3
 
     def test_hunk_no_function_context(self):
@@ -501,7 +501,7 @@ class TestAnnotatedFormat:
 
         # Should have __new hunk__ without | part
         lines = result.split("\n")
-        hunk_headers = [l for l in lines if l.startswith("__new hunk__")]
+        hunk_headers = [ln for ln in lines if ln.startswith("__new hunk__")]
         assert len(hunk_headers) == 1
         assert "|" not in hunk_headers[0]
 
@@ -530,7 +530,7 @@ class TestAnnotatedFormat:
 
         # Should have two __new hunk__ sections
         lines = result.split("\n")
-        new_hunk_headers = [l for l in lines if l.startswith("__new hunk__")]
+        new_hunk_headers = [ln for ln in lines if ln.startswith("__new hunk__")]
         assert len(new_hunk_headers) == 2
 
         # Both should have function context
@@ -539,12 +539,12 @@ class TestAnnotatedFormat:
 
         # Verify line numbers are correct for each hunk
         # First hunk: starts at line 5, add1 should be at line 6
-        add1_lines = [l for l in lines if "+add1" in l]
-        assert any("6" in l for l in add1_lines)
+        add1_lines = [ln for ln in lines if "+add1" in ln]
+        assert any("6" in ln for ln in add1_lines)
 
         # Second hunk: starts at line 21, add2 should be at line 22
-        add2_lines = [l for l in lines if "+add2" in l]
-        assert any("22" in l for l in add2_lines)
+        add2_lines = [ln for ln in lines if "+add2" in ln]
+        assert any("22" in ln for ln in add2_lines)
 
     def test_annotated_via_tools_get_chunk(self):
         """Annotated format works end-to-end via DiffChunkTools.get_chunk."""
@@ -591,15 +591,15 @@ class TestAnnotatedFormat:
         # Line 52: " last line"
         new_hunk_lines = []
         in_new = False
-        for l in lines:
-            if l.startswith("__new hunk__"):
+        for ln in lines:
+            if ln.startswith("__new hunk__"):
                 in_new = True
                 continue
-            if l.startswith("__old hunk__") or l.startswith("## File:"):
+            if ln.startswith("__old hunk__") or ln.startswith("## File:"):
                 in_new = False
                 continue
-            if in_new and l.strip():
-                new_hunk_lines.append(l)
+            if in_new and ln.strip():
+                new_hunk_lines.append(ln)
 
         assert len(new_hunk_lines) == 6
         assert new_hunk_lines[0].strip().startswith("47")
@@ -632,9 +632,9 @@ class TestCompactFormat:
         # Split into lines and check content lines (skip headers/markers)
         lines = result.split("\n")
         content_lines = [
-            l for l in lines
-            if not l.startswith("## File:") and not l.startswith("__")
-            and l.strip()
+            ln for ln in lines
+            if not ln.startswith("## File:") and not ln.startswith("__")
+            and ln.strip()
         ]
         # No content line should have a - prefix (removed line format is "    -text")
         for line in content_lines:
@@ -688,15 +688,15 @@ class TestCompactFormat:
         # Collect content lines (not headers/markers)
         content_lines = []
         in_hunk = False
-        for l in lines:
-            if l.startswith("__new hunk__"):
+        for ln in lines:
+            if ln.startswith("__new hunk__"):
                 in_hunk = True
                 continue
-            if l.startswith("## File:"):
+            if ln.startswith("## File:"):
                 in_hunk = False
                 continue
-            if in_hunk and l.strip():
-                content_lines.append(l)
+            if in_hunk and ln.strip():
+                content_lines.append(ln)
 
         # Should have 6 lines: 2 context, 2 added, 1 context (skip removed), 1 context
         assert len(content_lines) == 6
@@ -753,9 +753,9 @@ class TestCompactFormat:
         # Verify no removed lines in output content
         lines = result.split("\n")
         content_lines = [
-            l for l in lines
-            if not l.startswith("## File:") and not l.startswith("__")
-            and l.strip()
+            ln for ln in lines
+            if not ln.startswith("## File:") and not ln.startswith("__")
+            and ln.strip()
         ]
         for line in content_lines:
             stripped = line.strip()
@@ -764,7 +764,7 @@ class TestCompactFormat:
             )
 
         # Should have three __new hunk__ markers total (2 for auth.py, 1 for utils.py)
-        new_hunk_count = sum(1 for l in lines if l.startswith("__new hunk__"))
+        new_hunk_count = sum(1 for ln in lines if ln.startswith("__new hunk__"))
         assert new_hunk_count == 3
 
     def test_compact_deleted_file_no_output(self):
@@ -808,7 +808,7 @@ class TestCompactFormat:
 
         # All lines should have + prefix and line numbers
         lines = result.split("\n")
-        added_lines = [l for l in lines if "+" in l and "line" in l]
+        added_lines = [ln for ln in lines if "+" in ln and "line" in ln]
         assert len(added_lines) == 3
 
     def test_compact_via_tools_get_chunk(self):
@@ -943,12 +943,12 @@ class TestContextLinesParameter:
                 content_lines.append(line)
 
         # Count context lines
-        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+        ctx_lines = [ln for ln in content_lines if ln.startswith(" ")]
         assert len(ctx_lines) == 2  # 1 before + 1 after
 
         # Change lines should still be present
-        assert any("+added_line" in l for l in content_lines)
-        assert any("-removed_line" in l for l in content_lines)
+        assert any("+added_line" in ln for ln in content_lines)
+        assert any("-removed_line" in ln for ln in content_lines)
 
     def test_reduce_context_recalculated_headers(self):
         """Hunk headers are recalculated after context reduction."""
@@ -963,7 +963,7 @@ class TestContextLinesParameter:
 
         hunk_re = re.compile(r"^@@ -(\d+),(\d+) \+(\d+),(\d+) @@")
         result_lines = result.split("\n")
-        hunk_headers = [l for l in result_lines if hunk_re.match(l)]
+        hunk_headers = [ln for ln in result_lines if hunk_re.match(ln)]
         assert len(hunk_headers) >= 1
 
         m = hunk_re.match(hunk_headers[0])
@@ -994,7 +994,7 @@ class TestContextLinesParameter:
 
         # All context lines should be preserved
         result_lines = result.split("\n")
-        ctx_lines = [l for l in result_lines if l.startswith(" context_")]
+        ctx_lines = [ln for ln in result_lines if ln.startswith(" context_")]
         assert len(ctx_lines) == 10  # 5 before + 5 after
 
     def test_reduce_context_zero_keeps_only_changes(self):
@@ -1016,12 +1016,12 @@ class TestContextLinesParameter:
                 content_lines.append(line)
 
         # No context lines
-        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+        ctx_lines = [ln for ln in content_lines if ln.startswith(" ")]
         assert len(ctx_lines) == 0
 
         # Changes are still present
-        assert any("+added_line" in l for l in content_lines)
-        assert any("-removed_line" in l for l in content_lines)
+        assert any("+added_line" in ln for ln in content_lines)
+        assert any("-removed_line" in ln for ln in content_lines)
 
     def test_reduce_context_overlapping_windows(self):
         """Two nearby changes with overlapping context windows preserve shared context."""
@@ -1065,18 +1065,18 @@ class TestContextLinesParameter:
         # - first_add needs 2 before (far_before_3, near_before) and 2 after (between_1, between_2)
         # - second_remove/second_add needs 2 before (between_1, between_2) and 2 after (near_after, far_after_1)
         # The between_1 and between_2 lines are shared context
-        ctx_lines = [l for l in content_lines if l.startswith(" ")]
+        ctx_lines = [ln for ln in content_lines if ln.startswith(" ")]
 
         # Should keep: far_before_3, near_before, between_1, between_2, near_after, far_after_1
         assert len(ctx_lines) == 6
 
         # far_before_1 and far_before_2 should be dropped
-        assert not any("far_before_1" in l for l in content_lines)
-        assert not any("far_before_2" in l for l in content_lines)
+        assert not any("far_before_1" in ln for ln in content_lines)
+        assert not any("far_before_2" in ln for ln in content_lines)
 
         # far_after_2 and far_after_3 should be dropped
-        assert not any("far_after_2" in l for l in content_lines)
-        assert not any("far_after_3" in l for l in content_lines)
+        assert not any("far_after_2" in ln for ln in content_lines)
+        assert not any("far_after_3" in ln for ln in content_lines)
 
     def test_context_lines_negative_raises_valueerror(self):
         """Negative context_lines raises ValueError via tools validation."""
@@ -1334,9 +1334,9 @@ class TestFormatterEdgeCases:
         # Compact should not contain removed lines
         lines = result_compact.split("\n")
         content_lines = [
-            l
-            for l in lines
-            if not l.startswith("## File:") and not l.startswith("__") and l.strip()
+            ln
+            for ln in lines
+            if not ln.startswith("## File:") and not ln.startswith("__") and ln.strip()
         ]
         for line in content_lines:
             assert not line.strip().startswith("-"), (
@@ -1365,7 +1365,7 @@ class TestFormatterEdgeCases:
 
         # All 5 lines should be present
         lines = result_annotated.split("\n")
-        added_lines = [l for l in lines if "+" in l and l.strip()]
+        added_lines = [ln for ln in lines if "+" in ln and ln.strip()]
         assert len(added_lines) >= 5
 
         result_compact = _format_compact(diff, ["brand_new.py"])
@@ -1437,7 +1437,7 @@ class TestFormatterEdgeCases:
 
         # Each file should have its own hunk markers
         lines = result.split("\n")
-        file_headers = [l for l in lines if l.startswith("## File:")]
+        file_headers = [ln for ln in lines if ln.startswith("## File:")]
         assert len(file_headers) == 3
 
     def test_very_long_lines(self):
