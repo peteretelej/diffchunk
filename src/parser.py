@@ -338,10 +338,7 @@ class DiffParser:
 
                 hunk_lines = [new_header]
                 for lt, text, _, _ in sub:
-                    if lt != "meta":
-                        hunk_lines.append(text)
-                    else:
-                        hunk_lines.append(text)
+                    hunk_lines.append(text)
                 output_hunks.append("\n".join(hunk_lines))
 
         if not output_hunks:

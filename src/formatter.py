@@ -79,7 +79,7 @@ def _parse_file_sections(content: str) -> List[FileSection]:
     def _flush_file():
         nonlocal current_path, current_hunks, in_hunk
         _flush_hunk()
-        if current_path is not None and current_hunks:
+        if current_path is not None:
             sections.append(FileSection(path=current_path, hunks=current_hunks))
         current_hunks = []
         in_hunk = False
