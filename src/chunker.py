@@ -1,7 +1,7 @@
 """Diff chunking functionality."""
 
 import re
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 from .models import DiffChunk, DiffSession
 from .parser import DiffParser
 
@@ -21,6 +21,7 @@ class DiffChunker:
         include_patterns: List[str] | None = None,
         exclude_patterns: List[str] | None = None,
         max_chunk_lines: int | None = None,
+        context_lines: Optional[int] = None,
     ) -> None:
         """Chunk a diff file into the session."""
         if max_chunk_lines is None:
@@ -38,8 +39,16 @@ class DiffChunker:
         except ValueError as e:
             raise ValueError(f"Failed to parse diff: {e}")
 
+        if context_lines is not None:
+            file_changes = [
+                (files, self.parser.reduce_context(content, context_lines))
+                for files, content in file_changes
+            ]
+
         if not file_changes:
             raise ValueError("Diff file parsed successfully but contains no changes")
+
+        files_excluded_count = 0
 
         for files, content in file_changes:
             # Apply filters
@@ -52,6 +61,7 @@ class DiffChunker:
             if not self.parser.should_include_file(
                 files, include_patterns, exclude_patterns
             ):
+                files_excluded_count += 1
                 continue
 
             content_lines = self.parser.count_lines(content)
@@ -140,6 +150,7 @@ class DiffChunker:
 
         # Update session statistics
         session.update_stats()
+        session.stats.files_excluded = files_excluded_count
 
         if not session.chunks:
             raise ValueError(

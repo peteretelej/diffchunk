@@ -68,7 +68,7 @@ class TestCaseInsensitiveMatching:
         tools.load_diff(react_diff_file)
 
         # Get a file name from the diff
-        chunks = tools.list_chunks(react_diff_file)
+        chunks = tools.list_chunks(react_diff_file)["chunks"]
         file_name = chunks[0]["files"][0]
 
         # Exact case should work
@@ -83,7 +83,7 @@ class TestCaseInsensitiveMatching:
         """get_file_diff glob matching is case-insensitive."""
         tools.load_diff(react_diff_file)
 
-        chunks = tools.list_chunks(react_diff_file)
+        chunks = tools.list_chunks(react_diff_file)["chunks"]
         # Find a file that has a unique extension to use as glob pattern
         file_name = chunks[0]["files"][0]
 

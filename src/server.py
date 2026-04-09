@@ -51,8 +51,14 @@ def load_diff(
         Optional[str],
         Field(description="Comma-separated glob patterns for files to exclude"),
     ] = None,
+    context_lines: Annotated[
+        Optional[int],
+        Field(
+            description="Number of context lines around each change (default: keep all from diff file)"
+        ),
+    ] = None,
 ) -> str:
-    """Parse and load a diff file with custom chunking settings. Use this tool ONLY when you need non-default settings (custom chunk sizes, filtering patterns). Otherwise, use list_chunks, get_chunk, or find_chunks_for_files which auto-load with optimal defaults. CRITICAL: You must use an absolute directory path - relative paths will fail. The diff file will be too large for direct reading, so you MUST use diffchunk tools for navigation. When using tracking documents for analysis, remember to clean up tracking state before presenting final results."""
+    """Parse and load a diff file with custom chunking settings. Use this tool ONLY when you need non-default settings (custom chunk sizes, filtering patterns). Otherwise, use list_chunks, get_chunk, or find_chunks_for_files which auto-load with optimal defaults. CRITICAL: You must use an absolute directory path - relative paths will fail. The diff file will be too large for direct reading, so you MUST use diffchunk tools for navigation. When using tracking documents for analysis, remember to clean up tracking state before presenting final results. The response includes a `files_excluded` count showing how many files were removed by exclude_patterns."""
     logger.info("load_diff: %s", os.path.basename(absolute_file_path))
     logger.debug("load_diff full path: %s", absolute_file_path)
     result = tools.load_diff(
@@ -62,6 +68,7 @@ def load_diff(
         skip_generated=skip_generated,
         include_patterns=include_patterns,
         exclude_patterns=exclude_patterns,
+        context_lines=context_lines,
     )
     return json.dumps(result, indent=2)
 
@@ -72,7 +79,7 @@ def list_chunks(
         str, Field(description="Absolute path to the diff file")
     ],
 ) -> str:
-    """Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work."""
+    """Get an overview of all chunks in a diff file with file mappings and summaries. Auto-loads the diff file with optimal defaults if not already loaded. Use this as your first step to understand the scope and structure of changes before diving into specific chunks. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT attempt to read the diff file directly as it will exceed context limits. This tool provides the roadmap for systematic chunk-by-chunk analysis. If using tracking documents to resume analysis, use this to orient yourself to remaining work. Each chunk includes a `token_count` estimate, and the response includes `total_token_count` for context-budget planning."""
     logger.info("list_chunks: %s", os.path.basename(absolute_file_path))
     logger.debug("list_chunks full path: %s", absolute_file_path)
     result = tools.list_chunks(absolute_file_path=absolute_file_path)
@@ -90,6 +97,12 @@ def get_chunk(
     include_context: Annotated[
         bool, Field(description="Include chunk header with metadata")
     ] = True,
+    format: Annotated[
+        str,
+        Field(
+            description="Output format: 'raw' (default, standard diff), 'annotated' (line numbers, new/old hunk separation), 'compact' (line numbers, new hunks only)"
+        ),
+    ] = "raw",
 ) -> str:
     """Retrieve the actual content of a specific numbered chunk from a diff file. Auto-loads the diff file if not already loaded. Use this for systematic analysis of changes chunk-by-chunk, or to examine specific chunks identified via list_chunks or find_chunks_for_files. CRITICAL: You must use an absolute directory path - relative paths will fail. DO NOT read diff files directly - they exceed LLM context windows. This tool provides manageable portions of large diffs. Track your progress through chunks when doing comprehensive analysis and clean up tracking documents before final results."""
     logger.info(
@@ -100,6 +113,7 @@ def get_chunk(
         absolute_file_path=absolute_file_path,
         chunk_number=chunk_number,
         include_context=include_context,
+        format=format,
     )
     return result
 

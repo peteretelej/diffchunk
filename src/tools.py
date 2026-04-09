@@ -6,8 +6,9 @@ import logging
 import os
 import time
 from typing import Dict, Any, List, Optional
-from .models import DiffSession
+from .models import DiffSession, FormatMode
 from .chunker import DiffChunker
+from .formatter import format_chunk
 
 logger = logging.getLogger("diffchunk")
 
@@ -52,6 +53,7 @@ class DiffChunkTools:
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
         exclude_patterns: Optional[str] = None,
+        context_lines: Optional[int] = None,
     ) -> DiffSession:
         """Internal method to load and parse a diff file."""
         # Validate inputs
@@ -64,6 +66,10 @@ class DiffChunkTools:
 
         if not isinstance(max_chunk_lines, int) or max_chunk_lines <= 0:
             raise ValueError("max_chunk_lines must be a positive integer")
+
+        if context_lines is not None:
+            if not isinstance(context_lines, int) or context_lines < 0:
+                raise ValueError("context_lines must be a non-negative integer or None")
 
         # Canonicalize path
         resolved_file_path = os.path.realpath(os.path.expanduser(absolute_file_path))
@@ -104,6 +110,7 @@ class DiffChunkTools:
             skip_generated=skip_generated,
             include_patterns=include_list,
             exclude_patterns=exclude_list,
+            context_lines=context_lines,
         )
         elapsed = time.monotonic() - start
         logger.info(
@@ -130,6 +137,7 @@ class DiffChunkTools:
         skip_generated: bool = True,
         include_patterns: Optional[str] = None,
         exclude_patterns: Optional[str] = None,
+        context_lines: Optional[int] = None,
     ) -> Dict[str, Any]:
         """Load and parse a diff file into chunks."""
         session = self._load_diff_internal(
@@ -139,6 +147,7 @@ class DiffChunkTools:
             skip_generated=skip_generated,
             include_patterns=include_patterns,
             exclude_patterns=exclude_patterns,
+            context_lines=context_lines,
         )
 
         # Return overview
@@ -147,21 +156,23 @@ class DiffChunkTools:
             "files": session.stats.total_files,
             "total_lines": session.stats.total_lines,
             "file_path": absolute_file_path,
+            "files_excluded": session.stats.files_excluded,
         }
 
-    def list_chunks(self, absolute_file_path: str) -> List[Dict[str, Any]]:
+    def list_chunks(self, absolute_file_path: str) -> Dict[str, Any]:
         """List all chunks with their metadata."""
         file_key = self._ensure_loaded(absolute_file_path)
         session = self.sessions[file_key]
 
         chunk_infos = session.list_chunk_infos()
 
-        return [
+        chunks = [
             {
                 "chunk": info.chunk_number,
                 "files": info.files,
                 "file_details": info.file_details,
                 "lines": info.line_count,
+                "token_count": info.token_count,
                 "summary": info.summary,
                 "parent_file": info.parent_file,
                 "sub_chunk_index": info.sub_chunk_index,
@@ -169,8 +180,19 @@ class DiffChunkTools:
             for info in chunk_infos
         ]
 
+        total_token_count = sum(info.token_count for info in chunk_infos)
+
+        return {
+            "chunks": chunks,
+            "total_token_count": total_token_count,
+        }
+
     def get_chunk(
-        self, absolute_file_path: str, chunk_number: int, include_context: bool = True
+        self,
+        absolute_file_path: str,
+        chunk_number: int,
+        include_context: bool = True,
+        format: str = "raw",
     ) -> str:
         """Get the content of a specific chunk."""
         file_key = self._ensure_loaded(absolute_file_path)
@@ -179,6 +201,12 @@ class DiffChunkTools:
         if not isinstance(chunk_number, int) or chunk_number <= 0:
             raise ValueError("chunk_number must be a positive integer")
 
+        try:
+            mode = FormatMode(format)
+        except ValueError:
+            valid = ", ".join(f"'{m.value}'" for m in FormatMode)
+            raise ValueError(f"Invalid format '{format}'. Must be one of: {valid}")
+
         chunk = session.get_chunk(chunk_number)
         if not chunk:
             total_chunks = len(session.chunks)
@@ -186,14 +214,18 @@ class DiffChunkTools:
                 f"Chunk {chunk_number} does not exist. The diff has {total_chunks} chunks (1-{total_chunks}). Use list_chunks to see what each chunk contains."
             )
 
+        content = chunk.content
+        if mode != FormatMode.RAW:
+            content = format_chunk(content, mode, chunk.files)
+
         if include_context:
             header = f"=== Chunk {chunk.number} of {len(session.chunks)} ===\n"
             header += f"Files: {', '.join(chunk.files)}\n"
             header += f"Lines: {chunk.line_count}\n"
             header += "=" * 50 + "\n"
-            return header + chunk.content
+            return header + content
         else:
-            return chunk.content
+            return content
 
     def find_chunks_for_files(self, absolute_file_path: str, pattern: str) -> List[int]:
         """Find chunks containing files matching the given pattern."""

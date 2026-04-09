@@ -24,32 +24,37 @@ def load_diff(
     skip_generated: bool = True,
     include_patterns: Optional[str] = None,
     exclude_patterns: Optional[str] = None,
+    context_lines: Optional[int] = None,
 ) -> Dict[str, Any]
 ```
 
-**Returns:** `{"chunks": int, "files": int, "total_lines": int, "file_path": str}`
+**Returns:** `{"chunks": int, "files": int, "total_lines": int, "file_path": str, "files_excluded": int}`
 
 ### list_chunks (Auto-loading)
 
 ```python
-def list_chunks(absolute_file_path: str) -> List[Dict[str, Any]]
+def list_chunks(absolute_file_path: str) -> Dict[str, Any]
 ```
 
-**Returns:** Array of chunk metadata with files, line counts, summaries, and `file_details` (per-file line counts)
+**Returns:** Dictionary with `chunks` (array of chunk metadata with files, line counts, token counts, summaries, and `file_details`) and `total_token_count` (sum of all chunk token counts)
 
 ```json
-[
-  {
-    "chunk": 1,
-    "files": ["src/main.py", "src/utils.py"],
-    "file_details": [
-      {"path": "src/main.py", "lines": 120},
-      {"path": "src/utils.py", "lines": 45}
-    ],
-    "lines": 165,
-    "summary": "2 files, 165 lines"
-  }
-]
+{
+  "chunks": [
+    {
+      "chunk": 1,
+      "files": ["src/main.py", "src/utils.py"],
+      "file_details": [
+        {"path": "src/main.py", "lines": 120},
+        {"path": "src/utils.py", "lines": 45}
+      ],
+      "lines": 165,
+      "token_count": 412,
+      "summary": "2 files, 165 lines"
+    }
+  ],
+  "total_token_count": 412
+}
 ```
 
 ### get_chunk (Auto-loading)
@@ -58,7 +63,8 @@ def list_chunks(absolute_file_path: str) -> List[Dict[str, Any]]
 def get_chunk(
     absolute_file_path: str, 
     chunk_number: int, 
-    include_context: bool = True
+    include_context: bool = True,
+    format: str = "raw",
 ) -> str
 ```
 
@@ -111,6 +117,7 @@ class ChunkInfo:
     files: List[str]
     line_count: int
     summary: str
+    token_count: int = 0                                        # Estimated token count (len(content) // 4)
     parent_file: str | None = None
     sub_chunk_index: int | None = None
     file_details: List[Dict[str, Any]] = field(default_factory=list)  # [{"path": str, "lines": int}]
@@ -168,9 +175,10 @@ src/
 ├── main.py           # CLI entry point
 ├── server.py         # MCP server (FastMCP module-level tools)
 ├── tools.py          # MCP tools (DiffChunkTools)
-├── models.py         # Data models
-├── parser.py         # Diff parsing (DiffParser)
-└── chunker.py        # Chunking logic (DiffChunker)
+├── models.py         # Data models (DiffStats, FormatMode, etc.)
+├── parser.py         # Diff parsing (DiffParser) and context reduction
+├── chunker.py        # Chunking logic (DiffChunker)
+└── formatter.py      # Output formatting (annotated, compact)
 ```
 
 ## Resources
@@ -181,6 +189,73 @@ src/
 
 - Pattern matching (glob) is case-insensitive, matching macOS/Windows filesystem behavior
 - Both `find_chunks_for_files` and `get_file_diff` use case-insensitive comparison
+
+## Format Options
+
+### FormatMode Enum
+
+```python
+class FormatMode(str, Enum):
+    RAW = "raw"          # Default - unmodified diff output
+    ANNOTATED = "annotated"  # Structured with line numbers and hunk separation
+    COMPACT = "compact"      # Token-efficient, new hunks only
+```
+
+`FormatMode` inherits from `str, Enum` so values compare directly with strings.
+
+### `format` Parameter on `get_chunk`
+
+The `format` parameter is a display-time parameter on `get_chunk`. It transforms output for rendering but stored data always remains raw.
+
+```python
+def get_chunk(
+    absolute_file_path: str,
+    chunk_number: int,
+    include_context: bool = True,
+    format: str = "raw",
+) -> str
+```
+
+- `"raw"` (default) - returns the original diff content, identical to pre-feature behavior
+- `"annotated"` - structured output with `## File:` headers, `__new hunk__`/`__old hunk__` separation, new-file line numbers, and function context from `@@` headers
+- `"compact"` - token-efficient output showing only new hunks (context + added lines), omitting removed lines and `__old hunk__` sections
+
+Invalid format values raise `ValueError` listing valid options.
+
+### `context_lines` Parameter on `load_diff`
+
+A load-time parameter that reduces context lines per hunk before chunking. Implemented via `DiffParser.reduce_context()`.
+
+```python
+def load_diff(
+    absolute_file_path: str,
+    ...,
+    context_lines: Optional[int] = None,
+) -> Dict[str, Any]
+```
+
+- `None` (default) - keeps all context lines from the original diff
+- `0` - keeps only added/removed lines, no context
+- `N` - keeps up to N context lines before and after each change
+
+Overlapping context windows between nearby changes preserve shared context lines. Hunk headers are recalculated after reduction. Negative values raise `ValueError`.
+
+### `files_excluded` in `DiffStats`
+
+```python
+@dataclass
+class DiffStats:
+    total_files: int
+    total_lines: int
+    chunks_count: int
+    files_excluded: int = 0
+```
+
+When `exclude_patterns` is used with `load_diff`, the `files_excluded` count reports how many files were removed by the patterns. This count is included in the `load_diff` response.
+
+### Feature Composition
+
+`format` and `context_lines` compose correctly: `context_lines` reduces context at load time (stored in the session), then `format` transforms the already-reduced content at display time. Both can be used alongside `exclude_patterns`.
 
 ## Performance
 
