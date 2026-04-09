@@ -5,6 +5,9 @@ set -e
 
 echo "Running pre-push checks..."
 
+echo "Checking lockfile is in sync..."
+uv lock --check
+
 echo "Checking ruff lint..."
 uv run ruff check .
 
